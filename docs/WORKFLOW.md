@@ -33,11 +33,12 @@ Write a short plan in your first message: the data model change, the server code
 
 1. Update `docs/PROGRESS.md`: set the slice to `in review`, add the branch name, a two-line summary and the date.
 2. Add or adjust a section in `docs/ARCHITECTURE.md` only if a new module changes how the system works.
-3. Push the branch and open a pull request using `.github/pull_request_template.md`. Fill the owner checklist from the brief. Link this session in the description with `https://claude.ai/code/${CLAUDE_CODE_REMOTE_SESSION_ID/#cse_/session_}` when that variable is set.
+3. Push the branch (`git push -u origin slice/sN-short-name`) and open a pull request with the body from `.github/pull_request_template.md`, owner checklist filled from the brief. In cloud sessions `gh pr` does **not** work (the GitHub proxy rejects GraphQL). Use the built-in GitHub tools if you have them; otherwise write the body to a file and call the REST API: `gh api repos/tristanhp/cockpit/pulls -f title="SN: …" -f head=slice/sN-short-name -f base=main -F body=@pr-body.md`. Delete the temporary body file afterwards. If every route fails, do not loop: the pushed branch is enough, say so in your final message and put the intended title and body there. The session link (`https://claude.ai/code/${CLAUDE_CODE_REMOTE_SESSION_ID/#cse_/session_}`) goes in the description when that variable is set.
 4. End with a message of at most ten lines: what works, what needs the owner (real-data test, keys, deploy), and which slice comes next.
 
 ## Guardrails
 
+- **Nobody is watching.** Never wait for an answer or an approval. If something blocks you, apply the budget rule below instead of asking.
 - **One slice, then stop.** Never start the next slice in the same session, even if budget remains.
 - **Budget.** If you are past roughly 250 tool calls, or you have failed the same check three times, stop: commit what works, mark the slice `blocked` in `docs/PROGRESS.md` with the reason, open a **draft** pull request and say so.
 - Never merge, never push to `main`, never force-push, never delete branches.

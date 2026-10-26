@@ -1,4 +1,53 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm ci*)",
+      "Bash(npm install*)",
+      "Bash(npm test*)",
+      "Bash(npx tsx *)",
+      "Bash(npx drizzle-kit *)",
+      "Bash(npx next *)",
+      "Bash(npx eslint*)",
+      "Bash(npx tsc*)",
+      "Bash(node *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git switch *)",
+      "Bash(git checkout *)",
+      "Bash(git branch*)",
+      "Bash(git fetch*)",
+      "Bash(git ls-remote *)",
+      "Bash(git push -u origin slice/*)",
+      "Bash(git push origin slice/*)",
+      "Bash(gh api *)",
+      "Bash(curl *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(grep *)",
+      "Bash(mkdir *)",
+      "Bash(sleep *)",
+      "Bash(kill *)",
+      "Bash(echo *)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * main*)",
+      "Bash(git push * HEAD:main*)",
+      "Bash(git reset --hard*)",
+      "Bash(git branch -D*)",
+      "Bash(git push * --delete*)",
+      "Bash(rm -rf *)",
+      "Read(./.env*)",
+      "Read(./config/seed.local.json)",
+      "Read(./private/**)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {
