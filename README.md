@@ -54,7 +54,7 @@ npm run demo   # fictional data, no API keys needed → http://localhost:3000
 - **Sources stay the source of truth.** Each pull is the complete state of a source and is swapped in atomically. Write-back to the home tool comes in later slices.
 - **Local-first.** SQLite on disk today. The same libSQL driver moves to Turso when the app goes online for phone access.
 
-More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); product decisions and the next slice in [docs/SPEC.md](docs/SPEC.md).
 
 ## Stack
 
