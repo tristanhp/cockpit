@@ -10,20 +10,23 @@ export function SyncButton({ lastSyncLabel }: { lastSyncLabel: string }) {
   const failed = report?.filter((r) => !r.ok) ?? [];
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex items-center gap-3 md:flex-col md:items-end md:gap-1">
       <button
         onClick={() => start(async () => setReport(await syncNow()))}
         disabled={pending}
-        className="rounded-md border border-border bg-surface px-3 py-1.5 text-sm hover:bg-surface-2 disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-md border border-rule-strong px-3 py-1.5 text-sm hover:border-accent hover:text-accent disabled:opacity-60"
       >
+        <svg viewBox="0 0 24 24" className={`size-4 ${pending ? "animate-spin" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
+          <path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4h-4" />
+        </svg>
         {pending ? "Synchronisation…" : "Synchroniser"}
       </button>
-      <span className="text-xs text-faint">
+      <span className={`text-xs ${failed.length ? "text-margin" : "text-ink-faint"}`}>
         {report
           ? failed.length
             ? `${failed.length} source(s) en erreur, voir Réglages`
             : `${report.length} sources à jour`
-          : `Dernière synchro : ${lastSyncLabel}`}
+          : `synchro ${lastSyncLabel}`}
       </span>
     </div>
   );

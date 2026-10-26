@@ -8,7 +8,7 @@ Cockpit pulls all of it into one local-first app built around my own method: **p
 
 > Status: **slice 1 of 12**, read-only sync with Notion, Linear and Google Calendar plus four screens. See the [roadmap](#roadmap).
 
-![Aujourd'hui: late, today and this-week tasks from Notion and Linear, today's agenda, P1 projects and upcoming milestones](docs/screenshots/aujourdhui.png)
+![Aujourd'hui: tasks from Notion and Linear set like a planner page, the day drawn to scale with free slots, P1 projects and upcoming milestones](docs/screenshots/aujourdhui.png)
 
 <sub>Screenshots use the built-in fictional demo dataset (`npm run demo`), not real accounts.</sub>
 
@@ -23,22 +23,26 @@ npm run demo   # fictional data, no API keys needed → http://localhost:3000
 
 | Screen | Purpose |
 |---|---|
-| **Aujourd'hui** | Late, today/tomorrow and this-week tasks from every source; today's agenda; P1 projects with their next action; milestones and exams in the next 14 days; Linear tickets waiting to be claimed |
+| **Aujourd'hui** | What's pressing (late, today, tomorrow) and this week's tasks from every source; **the day drawn to scale**, with free slots between 9 h and 22 h measured out (groundwork for time-blocking) and a "now" line; P1 projects with their next action; milestones and exams for the next 14 days; Linear tickets waiting to be claimed |
 | **Tâches** | Every open task across all sources, grouped by pillar, by source or by due date |
-| **Cockpit** | Projects grouped by level with weather and next action, the max-3-P1 rule flagged, 6-week milestones |
+| **Cockpit** | Projects grouped by level with weather and next action, the max-3-P1 rule flagged, a 6-week milestone timeline |
 | **Réglages** | Source registry: per-source status and errors, on/off switches, auto-discovery of new Notion databases, Linear teams and calendars, add a Notion database by pasting its URL |
+| **Everywhere** | `Ctrl K` command palette (navigation, accent-insensitive search over tasks and projects, sync) · detail panels for tasks and projects, addressable by URL (`?t=` / `?p=`) and closed with `Esc` · bottom tab bar on phones |
+
+**Design.** A French *grands carreaux* notebook: cool white paper with a red margin line, blue-black fountain-pen ink, Newsreader serif headings and planner-style dot leaders between a task and its date. The dark theme is the same notebook at night.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/cockpit.png" alt="Cockpit: projects grouped by level with weather and next action"><br><sub><b>Cockpit</b>: projects by level, with weather and next action</sub></td>
-    <td width="50%"><img src="docs/screenshots/taches.png" alt="Tâches: every open task grouped by pillar"><br><sub><b>Tâches</b>: every open task, grouped by pillar</sub></td>
+    <td width="50%"><img src="docs/screenshots/tache-detail.png" alt="Task detail panel over the Tâches screen"><br><sub><b>Task detail</b>: opened from any list, from search, or by URL</sub></td>
+    <td width="50%"><img src="docs/screenshots/projet-detail.png" alt="Project detail panel in dark theme, listing the project's open tasks"><br><sub><b>Project detail</b> (dark theme): weather, next action and its open tasks across sources</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/reglages.png" alt="Réglages: sources, detected sources and adding a Notion database"><br><sub><b>Réglages</b>: sources are data; new ones are detected and added in one click</sub></td>
-    <td width="50%"><img src="docs/screenshots/mobile.png" alt="Aujourd'hui and Tâches at phone width"><br><sub><b>Phone width</b>: the sidebar becomes a top bar and the columns stack</sub></td>
+    <td width="50%"><img src="docs/screenshots/cockpit.png" alt="Cockpit: projects grouped by level with weather, next action and a milestone timeline"><br><sub><b>Cockpit</b>: the season's projects by level, with a milestone timeline</sub></td>
+    <td width="50%"><img src="docs/screenshots/reglages.png" alt="Réglages: sources, connections, detected sources and adding a Notion database"><br><sub><b>Réglages</b>: sources are data; new ones are detected and added in one click</sub></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="docs/screenshots/aujourdhui-light.png" alt="Aujourd'hui in light theme"><br><sub><b>Light theme</b>: follows the system setting</sub></td>
+    <td width="50%"><img src="docs/screenshots/aujourdhui-sombre.png" alt="Aujourd'hui in dark theme"><br><sub><b>Dark theme</b>: follows the system setting</sub></td>
+    <td width="50%"><img src="docs/screenshots/mobile.png" alt="Aujourd'hui and Tâches at phone width with a bottom tab bar"><br><sub><b>Phone</b>: bottom tab bar, columns stack</sub></td>
   </tr>
 </table>
 
@@ -54,7 +58,7 @@ More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Stack
 
-Next.js 16 (App Router, Cache Components, Server Actions) · TypeScript · SQLite/libSQL + Drizzle ORM · Tailwind CSS 4 · Notion API (data sources) · Linear GraphQL API · Google Calendar API (OAuth)
+Next.js 16 (App Router, Cache Components, Server Actions) · React 19 · TypeScript · SQLite/libSQL + Drizzle ORM · Tailwind CSS 4 · Notion API (data sources) · Linear GraphQL API · Google Calendar API (OAuth)
 
 ## Run it with your own accounts
 

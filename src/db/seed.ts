@@ -4,6 +4,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { db, schema } from "./index";
 import type { SourceConfig } from "./schema";
+import { fold } from "@/lib/text";
 
 type SeedFile = {
   pillars: { id: string; name: string; color: string }[];
@@ -22,7 +23,7 @@ type SeedFile = {
 };
 
 const slug = (s: string) =>
-  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  fold(s).replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
 async function main() {
   const path =

@@ -6,6 +6,8 @@ import { db, schema } from "@/db";
 import type { Source } from "@/db/schema";
 import { resolveDataSourceId } from "@/connectors/notion";
 import { discoverAll, syncAll } from "@/sync";
+import { openTasks } from "@/lib/queries";
+import { fold } from "@/lib/text";
 
 // Local, single-user app for now: the dev server listens on 127.0.0.1 only.
 // Authentication comes with hosting (slice 11).
@@ -76,4 +78,23 @@ export async function adoptDiscovery(formData: FormData) {
 export async function dismissDiscovery(id: string) {
   await db.update(schema.discoveries).set({ dismissed: true }).where(eq(schema.discoveries.id, id));
   refresh();
+}
+
+export type SearchHit = { id: string; kind: "task" | "project"; label: string; hint?: string; href: string };
+
+
+/** Accent-insensitive search over open tasks and projects, for the command palette. */
+export async function searchEverything(query: string): Promise<SearchHit[]> {
+  const q = fold(query.trim());
+  if (q.length < 2) return [];
+  const [tasks, projects] = await Promise.all([openTasks(), db.select().from(schema.projects)]);
+  const taskHits = tasks
+    .filter((t) => fold(`${t.identifier ?? ""} ${t.title}`).includes(q))
+    .slice(0, 8)
+    .map((t) => ({ id: t.id, kind: "task" as const, label: t.title, hint: t.project?.name ?? t.source.name, href: `/taches?t=${encodeURIComponent(t.id)}` }));
+  const projectHits = projects
+    .filter((p) => fold(p.name).includes(q))
+    .slice(0, 5)
+    .map((p) => ({ id: p.id, kind: "project" as const, label: p.name, hint: p.meteo ?? undefined, href: `/cockpit?p=${encodeURIComponent(p.id)}` }));
+  return [...projectHits, ...taskHits];
 }

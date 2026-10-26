@@ -3,21 +3,25 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { and, gte, lte } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { addDays, daysFrom, formatDayLong, formatDayShort, formatRelative, formatTime, parisDay } from "@/lib/dates";
+import { addDays, daysFrom, formatDayCompact, formatDayMonth, formatRelative, isoWeek, parisDay, weekdayName } from "@/lib/dates";
 import { eventsForDay, lastSync, loadContext, needsTriage, openTasks, upcomingExams, upcomingMilestones } from "@/lib/queries";
-import { Card, Empty, PageHeader, PillarDot, Section, TaskList } from "@/components/ui";
+import { Empty, Meteo, PageHeader, PillarDot, Section, TaskList } from "@/components/ui";
 import { SyncButton } from "@/components/sync-button";
+import { Timeline } from "@/components/timeline";
+import { DetailLink } from "@/components/detail-link";
+import { DetailPanel } from "@/components/detail-panel";
 
-export default function TodayPage() {
+export default function TodayPage(props: PageProps<"/">) {
   return (
-    <Suspense fallback={<p className="text-sm text-faint">Chargement…</p>}>
-      <Today />
+    <Suspense fallback={<p className="font-serif italic text-ink-faint">Ouverture du carnet…</p>}>
+      <Today {...props} />
     </Suspense>
   );
 }
 
-async function Today() {
+async function Today({ searchParams }: PageProps<"/">) {
   await connection();
+  const sp = await searchParams;
   const today = parisDay();
   const [tasks, events, ctx, milestones, exams, synced, seasons] = await Promise.all([
     openTasks(),
@@ -30,116 +34,98 @@ async function Today() {
   ]);
 
   const mine = tasks.filter((t) => !needsTriage(t));
-  const late = mine.filter((t) => t.dueDate && t.dueDate < today);
-  const soon = mine.filter((t) => t.dueDate && t.dueDate >= today && t.dueDate <= addDays(today, 1));
+  const urgent = mine.filter((t) => t.dueDate && t.dueDate <= addDays(today, 1));
   const week = mine.filter((t) => t.dueDate && t.dueDate > addDays(today, 1) && t.dueDate <= addDays(today, 7));
   const triage = tasks.filter(needsTriage);
   const p1 = ctx.projects.filter((p) => p.levelId === "p1");
   const maxP1 = ctx.levels.find((l) => l.id === "p1")?.maxProjects ?? 3;
 
-  const deadlines = [
+  const horizon = [
     ...milestones.map((m) => ({ id: m.id, day: m.startDate!, label: m.name, kind: m.type ?? "Jalon", approx: m.approximate, url: m.url })),
-    ...exams.map((e) => ({ id: e.id, day: e.day, label: e.title, kind: "Évaluation (ADE)", approx: false, url: e.url })),
+    ...exams.map((e) => ({ id: e.id, day: e.day, label: e.title, kind: "Évaluation", approx: false, url: e.url })),
   ].sort((a, b) => a.day.localeCompare(b.day));
 
   return (
     <>
-      <PageHeader title={formatDayLong(today)} subtitle={seasons[0] ? `Saison : ${seasons[0].name}` : undefined}>
+      <PageHeader
+        eyebrow={weekdayName(today)}
+        title={formatDayMonth(today)}
+        subtitle={<>— {seasons[0]?.name ?? "Hors saison"}, semaine {isoWeek(today)} —</>}
+      >
         <SyncButton lastSyncLabel={formatRelative(synced)} />
       </PageHeader>
 
       {!synced && (
-        <div className="mb-8">
-          <Empty>
-            Rien de synchronisé pour l&apos;instant. Renseigne tes accès dans <code>.env.local</code>, connecte Google dans{" "}
-            <Link href="/reglages" className="underline">Réglages</Link>, puis clique sur « Synchroniser ».
-          </Empty>
+        <div className="mb-10 border-l-2 border-margin pl-4 text-sm text-ink-soft">
+          Rien de synchronisé pour l&apos;instant. Renseigne tes accès dans <code className="font-mono text-xs">.env.local</code>, connecte Google dans{" "}
+          <Link href="/reglages" className="underline decoration-rule-strong underline-offset-4">Réglages</Link>, puis clique sur « Synchroniser ».
         </div>
       )}
 
-      <div className="grid gap-x-10 lg:grid-cols-[1fr_20rem]">
+      <div className="grid gap-x-14 lg:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="min-w-0">
-          {late.length > 0 && (
-            <Section title="En retard" count={late.length}>
-              <TaskList tasks={late} today={today} empty="" />
-            </Section>
-          )}
-          <Section title="Aujourd'hui et demain" count={soon.length}>
-            <TaskList tasks={soon} today={today} empty="Rien d'échu aujourd'hui ni demain." />
+          <Section title="Ce qui presse" count={urgent.length} aside="en retard, aujourd'hui, demain">
+            <TaskList tasks={urgent} today={today} empty="Rien d'échu d'ici demain. Respire." />
           </Section>
           <Section title="Cette semaine" count={week.length}>
             <TaskList tasks={week} today={today} empty="Aucune échéance dans les 7 prochains jours." />
           </Section>
           {triage.length > 0 && (
-            <Section title="Linear · à trier" count={triage.length} aside={<span className="text-xs text-faint">pas assignés à toi : lesquels te concernent ?</span>}>
+            <Section title="À trier" count={triage.length} aside="Linear, pas assignés à toi">
               <TaskList tasks={triage} today={today} empty="" />
             </Section>
           )}
         </div>
 
         <aside className="min-w-0">
-          <Section title="Agenda" count={events.length}>
-            {events.length ? (
-              <Card>
-                <ul className="divide-y divide-border">
-                  {events.map((e) => (
-                    <li key={e.id} className="flex gap-3 px-4 py-2 text-sm">
-                      <span className="w-12 shrink-0 tabular-nums text-faint">{e.allDay ? "jour" : formatTime(e.start)}</span>
-                      <span className={`min-w-0 flex-1 truncate ${e.isExam ? "font-medium text-danger" : ""}`}>{e.title}</span>
-                      <span className="shrink-0 text-xs text-faint">{e.source.name}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            ) : (
-              <Empty>Agenda vide aujourd&apos;hui.</Empty>
-            )}
+          <Section title="La journée">
+            {events.length ? <Timeline events={events} day={today} /> : <Empty>Page blanche : aucun événement aujourd&apos;hui.</Empty>}
           </Section>
 
-          <Section title="Piliers P1" count={p1.length} aside={p1.length > maxP1 ? <span className="text-xs text-warn">max {maxP1}</span> : undefined}>
+          <Section title="Les piliers" count={p1.length} aside={p1.length > maxP1 ? <span className="text-warn">P1 · max {maxP1}</span> : "P1"}>
             {p1.length ? (
-              <Card>
-                <ul className="divide-y divide-border">
-                  {p1.map((p) => (
-                    <li key={p.id} className="px-4 py-2.5">
-                      <div className="flex items-center gap-2 text-sm">
+              <ul>
+                {p1.map((p) => (
+                  <li key={p.id} className="border-b border-rule last:border-b-0">
+                    <DetailLink param="p" id={p.id} className="block py-2.5 hover:bg-paper-2/60">
+                      <span className="flex items-center gap-2">
                         <PillarDot pillar={ctx.pillars.find((x) => x.id === p.pillarId) ?? null} />
-                        <span className="flex-1 truncate">{p.name}</span>
-                        <span>{p.meteo}</span>
-                      </div>
-                      {p.nextAction && <p className="mt-0.5 pl-4 text-xs text-muted">→ {p.nextAction}</p>}
-                    </li>
-                  ))}
-                </ul>
-              </Card>
+                        <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                        <Meteo value={p.meteo} />
+                      </span>
+                      {p.nextAction && <span className="mt-0.5 block pl-4 font-serif text-sm italic text-ink-soft">→ {p.nextAction}</span>}
+                    </DetailLink>
+                  </li>
+                ))}
+              </ul>
             ) : (
-              <Empty>Aucun projet P1 synchronisé.</Empty>
+              <Empty>Aucun projet P1 pour l&apos;instant.</Empty>
             )}
           </Section>
 
-          <Section title="Jalons · 14 jours" count={deadlines.length}>
-            {deadlines.length ? (
-              <Card>
-                <ul className="divide-y divide-border">
-                  {deadlines.map((d) => (
-                    <li key={d.id} className="flex gap-3 px-4 py-2 text-sm">
-                      <span className="w-16 shrink-0 text-xs tabular-nums text-faint">
-                        {d.approx ? "~" : ""}
-                        {daysFrom(today, d.day) === 0 ? "auj." : formatDayShort(d.day)}
-                      </span>
-                      <a href={d.url ?? undefined} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate hover:underline" title={d.kind}>
-                        {d.label}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
+          <Section title="À l'horizon" count={horizon.length} aside="14 jours">
+            {horizon.length ? (
+              <ul>
+                {horizon.map((h) => (
+                  <li key={h.id} className="flex items-baseline gap-3 border-b border-rule py-2 text-sm last:border-b-0">
+                    <span className="w-14 shrink-0 whitespace-nowrap font-mono text-xs tabular-nums text-ink-faint">
+                      {h.approx ? "~" : ""}
+                      {daysFrom(today, h.day) === 0 ? "auj." : formatDayCompact(h.day)}
+                    </span>
+                    <a href={h.url ?? undefined} target="_blank" rel="noreferrer" title={h.kind} className={`min-w-0 flex-1 ${h.kind === "Évaluation" ? "text-margin" : ""}`}>
+                      {h.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
             ) : (
-              <Empty>Pas de jalon dans les 14 jours.</Empty>
+              <Empty>Rien à l&apos;horizon des deux semaines.</Empty>
             )}
           </Section>
         </aside>
       </div>
+
+      <DetailPanel sp={sp} path="/" />
     </>
   );
 }

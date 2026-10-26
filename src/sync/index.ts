@@ -6,6 +6,7 @@ import { linearConnector } from "@/connectors/linear";
 import { notionConnector } from "@/connectors/notion";
 import type { Connector, PullResult } from "@/connectors/types";
 import { parisDay } from "@/lib/dates";
+import { fold } from "@/lib/text";
 
 export const connectors: Record<Source["kind"], Connector> = {
   notion: notionConnector,
@@ -16,7 +17,7 @@ export const connectors: Record<Source["kind"], Connector> = {
 // Projects first, so tasks pulled afterwards can be linked to them by name.
 const ROLE_ORDER: Source["role"][] = ["projects", "milestones", "tasks", "events", "reviews"];
 
-const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+const norm = (s: string) => fold(s).trim();
 
 export type SyncReport = { sourceId: string; name: string; ok: boolean; count: number; error?: string }[];
 
