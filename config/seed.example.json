@@ -1,0 +1,29 @@
+{
+  "pillars": [
+    { "id": "etudes", "name": "Études", "color": "blue" },
+    { "id": "carriere", "name": "Carrière", "color": "purple" },
+    { "id": "projets", "name": "Projets perso", "color": "orange" },
+    { "id": "sport-bien-etre", "name": "Sport & Bien-être", "color": "green" },
+    { "id": "vie-perso", "name": "Vie perso", "color": "gray" }
+  ],
+  "levels": [
+    { "id": "socle", "name": "Socle", "description": "Non négociable : sport, sommeil.", "weeklyRule": "Placé en premier" },
+    { "id": "p1", "name": "P1", "description": "Les priorités qui font avancer la saison.", "weeklyRule": "Blocs de deep work dédiés", "maxProjects": 3 },
+    { "id": "p2", "name": "P2", "description": "Important mais secondaire cette saison.", "weeklyRule": "1 à 2 blocs par semaine" },
+    { "id": "maintenance", "name": "Maintenance", "description": "On garde en vie, sans viser l'excellence.", "weeklyRule": "1 créneau fourre-tout par semaine" },
+    { "id": "en-attente", "name": "En attente", "description": "Rien à faire tant qu'un événement extérieur n'arrive pas.", "weeklyRule": "Aucune" }
+  ],
+  "seasons": [
+    { "id": "automne", "name": "Automne", "startDate": "2026-09-01", "endDate": "2026-12-31" }
+  ],
+  "sources": [
+    { "id": "notion-projets", "kind": "notion", "role": "projects", "name": "Projets", "externalRef": "<notion-data-source-or-database-id>" },
+    { "id": "notion-jalons", "kind": "notion", "role": "milestones", "name": "Jalons", "externalRef": "<notion-data-source-or-database-id>" },
+    { "id": "notion-taches", "kind": "notion", "role": "tasks", "name": "Tâches", "externalRef": "<notion-database-or-page-id>" },
+    { "id": "linear-team", "kind": "linear", "role": "tasks", "name": "Linear · Équipe", "externalRef": "ENG", "config": { "teamKey": "ENG" } }
+  ],
+  "calendars": [
+    { "name": "Principal", "calendarId": "primary", "calendarRole": "engagement" },
+    { "name": "Jours fériés", "calendarId": "fr.french#holiday@group.v.calendar.google.com", "calendarRole": "engagement" }
+  ]
+}
