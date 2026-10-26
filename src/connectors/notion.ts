@@ -1,9 +1,15 @@
 import { Client, isFullPage, isFullDataSource, iteratePaginatedAPI } from "@notionhq/client";
 import type { PageObjectResponse } from "@notionhq/client";
 import type { Source, SourceConfig } from "@/db/schema";
-import type { Connector, Discovered, PullResult, PulledTask } from "./types";
+import { EFFORTS, parsePriorityName, priorityOptionName } from "@/engine/priority";
+import type { Connector, CreateResult, Discovered, NewTask, ProjectPatch, PullResult, PulledTask, TaskPatch, WriteResult } from "./types";
 
-type PropSchema = { type: string; name: string; status?: { options: { id: string; name: string }[]; groups: { name: string; option_ids: string[] }[] } };
+type PropSchema = {
+  type: string;
+  name: string;
+  status?: { options: { id: string; name: string }[]; groups: { name: string; option_ids: string[] }[] };
+  select?: { options: { id: string; name: string }[] };
+};
 type PropValue = { type: string } & Record<string, unknown>;
 
 let client: Client | null = null;
@@ -96,6 +102,8 @@ export function guessMapping(props: Record<string, PropSchema>, config: SourceCo
     typeProp: config.typeProp ?? findProp(props, "select", /^type$/i),
     approxProp: config.approxProp ?? findProp(props, "checkbox", /^approximatif$/i),
     notesProp: config.notesProp ?? findProp(props, "rich_text", /^notes?$/i),
+    priorityProp: config.priorityProp ?? findProp(props, "select", /^priorit[ée]$/i) ?? findProp(props, "number", /^priorit[ée]$/i),
+    effortProp: config.effortProp ?? findProp(props, "number", /^(effort|points?|estimation)$/i) ?? findProp(props, "select", /^(effort|points?|estimation)$/i),
   };
 }
 
@@ -121,6 +129,11 @@ function statusResolver(schema: PropSchema | undefined) {
     normalize: (name: string | null): PulledTask["status"] =>
       name && /done|fait|termin|complet/i.test(name) ? "done" : name && /cours|progress/i.test(name) ? "doing" : "todo",
   };
+}
+
+function priorityValue(p: PropValue | undefined): number | null {
+  if (p?.type === "number") return typeof p.number === "number" && p.number >= 0 && p.number <= 4 ? p.number : null;
+  return parsePriorityName(text(p));
 }
 
 async function pull(source: Source): Promise<PullResult> {
@@ -196,6 +209,7 @@ async function pull(source: Source): Promise<PullResult> {
         .map((p) => {
         const s = get(p, map.statusProp);
         const raw = s?.type === "checkbox" ? (s.checkbox ? "Fait" : "À faire") : text(s);
+        const effort = Number(text(get(p, map.effortProp)));
         return {
           externalId: p.id,
           url: p.url,
@@ -204,6 +218,9 @@ async function pull(source: Source): Promise<PullResult> {
           statusRaw: raw,
           dueDate: dateRange(get(p, map.dueProp)).start,
           projectName: source.config.projectName ?? null,
+          priority: priorityValue(get(p, map.priorityProp)),
+          hasPriorityProp: Boolean(map.priorityProp),
+          effort: (EFFORTS as readonly number[]).includes(effort) ? effort : null,
           remoteUpdatedAt: p.last_edited_time,
         };
       }),
@@ -211,6 +228,121 @@ async function pull(source: Source): Promise<PullResult> {
   }
 
   return { configPatch };
+}
+
+/** The data source's schema and the property mapping, read fresh before a write. */
+async function schemaFor(source: Source) {
+  const n = notion();
+  const dataSourceId = source.config.dataSourceId ?? (await resolveDataSourceId(source.externalRef));
+  const ds = await n.dataSources.retrieve({ data_source_id: dataSourceId });
+  if (!isFullDataSource(ds)) throw new Error("Accès partiel à la base Notion");
+  const props = ds.properties as unknown as Record<string, PropSchema>;
+  return { n, dataSourceId, props, map: guessMapping(props, source.config) };
+}
+
+/** First option of a status group ("to-do" or "complete"), so custom option names still work. */
+function firstOptionOf(schema: PropSchema, group: "complete" | "todo"): string | null {
+  const st = schema.status;
+  if (!st) return null;
+  const wanted = st.groups.find((g) => (group === "complete" ? /complete/i.test(g.name) : /to-?do|[àa] faire/i.test(g.name)));
+  const id = wanted?.option_ids[0];
+  return st.options.find((o) => o.id === id)?.name ?? null;
+}
+
+function taskProperties(props: Record<string, PropSchema>, map: SourceConfig, patch: TaskPatch) {
+  const out: Record<string, unknown> = {};
+  if (patch.done !== undefined) {
+    const sp = map.statusProp ? props[map.statusProp] : undefined;
+    if (!map.statusProp || !sp) throw new Error("Cette base Notion n'a pas de propriété de statut");
+    if (sp.type === "checkbox") out[map.statusProp] = { checkbox: patch.done };
+    else if (sp.type === "status") {
+      const name = firstOptionOf(sp, patch.done ? "complete" : "todo");
+      if (!name) throw new Error("Statut Notion introuvable pour cette action");
+      out[map.statusProp] = { status: { name } };
+    } else if (sp.type === "select") {
+      const name = sp.select?.options.find((o) => (patch.done ? /done|fait|termin|complet/i : /to-?do|[àa] faire/i).test(o.name))?.name;
+      if (!name) throw new Error("Statut Notion introuvable pour cette action");
+      out[map.statusProp] = { select: { name } };
+    } else throw new Error("Type de statut Notion non géré");
+  }
+  if (patch.dueDate !== undefined) {
+    if (!map.dueProp) throw new Error("Cette base Notion n'a pas de propriété d'échéance");
+    out[map.dueProp] = { date: patch.dueDate ? { start: patch.dueDate } : null };
+  }
+  if (patch.priority !== undefined) {
+    const sp = map.priorityProp ? props[map.priorityProp] : undefined;
+    if (!map.priorityProp || !sp) throw new Error("Cette base Notion n'a pas de propriété Priorité");
+    if (sp.type === "number") out[map.priorityProp] = { number: patch.priority };
+    else {
+      const name = priorityOptionName(sp.select?.options.map((o) => o.name) ?? [], patch.priority);
+      if (!name) throw new Error("Cette priorité n'existe pas dans la base Notion");
+      out[map.priorityProp] = { select: { name } };
+    }
+  }
+  if (patch.effort !== undefined) {
+    const sp = map.effortProp ? props[map.effortProp] : undefined;
+    if (!map.effortProp || !sp) throw new Error("Cette base Notion n'a pas de propriété Effort");
+    out[map.effortProp] = sp.type === "number" ? { number: patch.effort } : { select: patch.effort === null ? null : { name: String(patch.effort) } };
+  }
+  return out;
+}
+
+async function updateTask(source: Source, externalId: string, patch: TaskPatch): Promise<WriteResult> {
+  const { n, props, map } = await schemaFor(source);
+  const properties = taskProperties(props, map, patch);
+  const page = await n.pages.update({ page_id: externalId, properties: properties as never });
+  const edited = "last_edited_time" in page ? page.last_edited_time : null;
+  return { remoteUpdatedAt: edited, response: `pages.update ${Object.keys(properties).join(", ")}` };
+}
+
+async function updateProject(source: Source, externalId: string, patch: ProjectPatch): Promise<WriteResult> {
+  const { n, props, map } = await schemaFor(source);
+  const properties: Record<string, unknown> = {};
+  if (patch.meteo !== undefined) {
+    const sp = map.meteoProp ? props[map.meteoProp] : undefined;
+    if (!map.meteoProp || !sp) throw new Error("Cette base Notion n'a pas de propriété Météo");
+    properties[map.meteoProp] = sp.type === "select" ? { select: patch.meteo ? { name: patch.meteo } : null } : { rich_text: patch.meteo ? [{ text: { content: patch.meteo } }] : [] };
+  }
+  if (patch.nextAction !== undefined) {
+    if (!map.nextActionProp) throw new Error("Cette base Notion n'a pas de propriété Prochaine action");
+    properties[map.nextActionProp] = { rich_text: patch.nextAction ? [{ text: { content: patch.nextAction } }] : [] };
+  }
+  if (patch.nextDue !== undefined) {
+    if (!map.dueProp) throw new Error("Cette base Notion n'a pas de propriété d'échéance");
+    properties[map.dueProp] = { date: patch.nextDue ? { start: patch.nextDue } : null };
+  }
+  if (patch.priority !== undefined) {
+    const sp = map.priorityProp ? props[map.priorityProp] : undefined;
+    if (!map.priorityProp || !sp) throw new Error("Cette base Notion n'a pas de propriété Priorité");
+    if (sp.type === "number") properties[map.priorityProp] = { number: patch.priority };
+    else {
+      const name = priorityOptionName(sp.select?.options.map((o) => o.name) ?? [], patch.priority);
+      if (!name) throw new Error("Cette priorité n'existe pas dans la base Notion");
+      properties[map.priorityProp] = { select: { name } };
+    }
+  }
+  const page = await n.pages.update({ page_id: externalId, properties: properties as never });
+  return { remoteUpdatedAt: "last_edited_time" in page ? page.last_edited_time : null, response: `pages.update ${Object.keys(properties).join(", ")}` };
+}
+
+async function createTask(source: Source, task: NewTask): Promise<CreateResult> {
+  const { n, dataSourceId, props, map } = await schemaFor(source);
+  if (!map.titleProp) throw new Error("Cette base Notion n'a pas de titre");
+  const properties: Record<string, unknown> = {
+    [map.titleProp]: { title: [{ text: { content: task.title } }] },
+    ...taskProperties(props, map, {
+      dueDate: task.dueDate ?? undefined,
+      priority: task.priority !== undefined && map.priorityProp ? task.priority : undefined,
+      effort: task.effort != null && map.effortProp ? task.effort : undefined,
+    }),
+  };
+  const page = await n.pages.create({ parent: { type: "data_source_id", data_source_id: dataSourceId }, properties: properties as never });
+  return {
+    externalId: page.id,
+    url: "url" in page ? page.url : null,
+    remoteUpdatedAt: "last_edited_time" in page ? page.last_edited_time : null,
+    response: "pages.create",
+  };
 }
 
 async function discover(): Promise<Discovered[]> {
@@ -233,6 +365,10 @@ export const notionConnector: Connector = {
   missingSetup: async () => (process.env.NOTION_TOKEN ? null : "Ajoute NOTION_TOKEN dans .env.local"),
   pull,
   discover,
+  updateTask,
+  updateProject,
+  createTask,
+  canWrite: (source, field) => Boolean(field === "priority" ? source.config.priorityProp : source.config.effortProp),
 };
 
 export { resolveDataSourceId };
