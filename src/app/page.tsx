@@ -36,7 +36,9 @@ async function Today({ searchParams }: PageProps<"/">) {
   const mine = tasks.filter((t) => !needsTriage(t));
   const urgent = mine.filter((t) => t.dueDate && t.dueDate <= addDays(today, 1));
   const week = mine.filter((t) => t.dueDate && t.dueDate > addDays(today, 1) && t.dueDate <= addDays(today, 7));
-  const triage = tasks.filter(needsTriage);
+  // Linear tickets not assigned to you: only the ones due soon belong on today's page.
+  const allTriage = tasks.filter(needsTriage);
+  const triage = allTriage.filter((t) => t.dueDate && t.dueDate <= addDays(today, 14));
   const p1 = ctx.projects.filter((p) => p.levelId === "p1");
   const maxP1 = ctx.levels.find((l) => l.id === "p1")?.maxProjects ?? 3;
 
@@ -71,7 +73,15 @@ async function Today({ searchParams }: PageProps<"/">) {
             <TaskList tasks={week} today={today} empty="Aucune échéance dans les 7 prochains jours." />
           </Section>
           {triage.length > 0 && (
-            <Section title="À trier" count={triage.length} aside="Linear, pas assignés à toi">
+            <Section
+              title="À trier"
+              count={triage.length}
+              aside={
+                <Link href="/taches?trier=1" className="hover:text-ink">
+                  Linear, dus sous 14 jours · voir les {allTriage.length}
+                </Link>
+              }
+            >
               <TaskList tasks={triage} today={today} empty="" />
             </Section>
           )}
