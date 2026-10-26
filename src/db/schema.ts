@@ -72,6 +72,13 @@ export type SourceConfig = {
   // Google Calendar: what the calendar means in the planning
   calendarRole?: "travail" | "perso" | "socle" | "cours" | "engagement";
   color?: string;
+  // Notion tasks: optional `Priorité` and `Effort` properties (guessed from the schema when absent).
+  priorityProp?: string;
+  effortProp?: string;
+  // Course deliverables carry a grade: due within 48 h they are always Urgent.
+  graded?: boolean;
+  // Linear: the team's workflow states, read once and cached here.
+  workflowStates?: { id: string; name: string; type: string; position: number }[];
 };
 
 export const projects = sqliteTable("projects", {
@@ -86,6 +93,13 @@ export const projects = sqliteTable("projects", {
   nextAction: text("next_action"),
   nextDue: text("next_due"),
   notes: text("notes"),
+  // Linear numbering (0 none … 4 low); null while the project is protected.
+  priority: integer("priority"),
+  status: text("status", { enum: ["actif", "en-attente"] }).notNull().default("actif"),
+  // Protected habits (the old Socle level) sit outside the priority scale.
+  protected: integer("protected", { mode: "boolean" }).notNull().default(false),
+  // Set once priority or status is edited in Cockpit, so a sync keeps the edit.
+  priorityManual: integer("priority_manual", { mode: "boolean" }).notNull().default(false),
   remoteUpdatedAt: text("remote_updated_at"),
   syncedAt: text("synced_at"),
 });
@@ -105,7 +119,12 @@ export const tasks = sqliteTable(
     projectId: text("project_id"),
     assignedToMe: integer("assigned_to_me", { mode: "boolean" }),
     assigneeName: text("assignee_name"),
+    // Effective priority, Linear numbering: 0 Aucune, 1 Urgent, 2 Haute, 3 Moyenne, 4 Basse.
     priority: integer("priority"),
+    // True when the priority was derived (project, deadline) rather than set at the source.
+    priorityAuto: integer("priority_auto", { mode: "boolean" }).notNull().default(false),
+    // Fibonacci points: 1, 2, 3, 5, 8.
+    effort: integer("effort"),
     remoteUpdatedAt: text("remote_updated_at"),
     syncedAt: text("synced_at").notNull(),
   },
@@ -155,6 +174,63 @@ export const discoveries = sqliteTable("discoveries", {
   foundAt: text("found_at").notNull(),
 });
 
+// Cockpit-only values that survive syncs: a priority or effort the source has no
+// property for, and the Linear triage choices.
+export const taskOverrides = sqliteTable("task_overrides", {
+  taskId: text("task_id").primaryKey(),
+  priority: integer("priority"),
+  effort: integer("effort"),
+  // "Pas pour moi": hidden from À trier for good.
+  hidden: integer("hidden", { mode: "boolean" }).notNull().default(false),
+  // "Me concerne": stays in Mes tâches without reassigning in Linear.
+  mine: integer("mine", { mode: "boolean" }).notNull().default(false),
+  updatedAt: text("updated_at").notNull(),
+});
+
+// Every write, so that it can be listed and undone. `before`/`after` are JSON.
+export const changeLog = sqliteTable(
+  "change_log",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    at: text("at").notNull(),
+    entity: text("entity", { enum: ["task", "project"] }).notNull(),
+    entityId: text("entity_id").notNull(),
+    label: text("label").notNull(),
+    field: text("field").notNull(),
+    before: text("before", { mode: "json" }).$type<unknown>(),
+    after: text("after", { mode: "json" }).$type<unknown>(),
+    // The source id, "cockpit" for Cockpit-only data, "sync" for a conflict.
+    source: text("source").notNull(),
+    response: text("response"),
+    undone: integer("undone", { mode: "boolean" }).notNull().default(false),
+  },
+  (t) => [index("change_log_at_idx").on(t.at)],
+);
+
+// Quick captures waiting to be filed.
+export const inbox = sqliteTable("inbox", {
+  id: text("id").primaryKey(),
+  text: text("text").notNull(),
+  kind: text("kind", { enum: ["task", "idea", "event"] }).notNull(),
+  title: text("title").notNull(),
+  dueDate: text("due_date"),
+  dueTime: text("due_time"),
+  suggestedSourceId: text("suggested_source_id"),
+  suggestedProjectId: text("suggested_project_id"),
+  note: text("note"),
+  status: text("status", { enum: ["pending", "filed", "dismissed"] }).notNull().default("pending"),
+  createdAt: text("created_at").notNull(),
+});
+
+// pattern (a keyword, a #tag, or `re:<regex>`) -> destination source and project.
+export const routingRules = sqliteTable("routing_rules", {
+  id: text("id").primaryKey(),
+  pattern: text("pattern").notNull(),
+  sourceId: text("source_id").notNull(),
+  projectId: text("project_id"),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value", { mode: "json" }).$type<unknown>(),
@@ -164,5 +240,9 @@ export type Source = typeof sources.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type Pillar = typeof pillars.$inferSelect;
+export type TaskOverride = typeof taskOverrides.$inferSelect;
+export type ChangeLogEntry = typeof changeLog.$inferSelect;
+export type InboxItem = typeof inbox.$inferSelect;
+export type RoutingRule = typeof routingRules.$inferSelect;
 export type Milestone = typeof milestones.$inferSelect;
 export type CalendarEvent = typeof events.$inferSelect;
