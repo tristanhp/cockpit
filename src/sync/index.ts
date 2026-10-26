@@ -20,8 +20,16 @@ const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").t
 
 export type SyncReport = { sourceId: string; name: string; ok: boolean; count: number; error?: string }[];
 
+/** `npm run demo` runs on fictional data: never call the real APIs. */
+export const isDemo = () => process.env.COCKPIT_DEMO === "1";
+
 export async function syncAll(): Promise<SyncReport> {
   const all = await db.select().from(schema.sources).where(eq(schema.sources.enabled, true));
+  if (isDemo()) {
+    await db.update(schema.sources).set({ lastSyncAt: new Date().toISOString() }).where(eq(schema.sources.enabled, true));
+    await touchLastSync();
+    return all.map((s) => ({ sourceId: s.id, name: s.name, ok: true, count: s.lastSyncCount ?? 0 }));
+  }
   all.sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role));
 
   const report: SyncReport = [];
@@ -43,11 +51,13 @@ export async function syncAll(): Promise<SyncReport> {
       report.push({ sourceId: source.id, name: source.name, ok: false, count: 0, error });
     }
   }
-  await db
-    .insert(schema.settings)
-    .values({ key: "last_sync", value: new Date().toISOString() })
-    .onConflictDoUpdate({ target: schema.settings.key, set: { value: new Date().toISOString() } });
+  await touchLastSync();
   return report;
+}
+
+async function touchLastSync() {
+  const value = new Date().toISOString();
+  await db.insert(schema.settings).values({ key: "last_sync", value }).onConflictDoUpdate({ target: schema.settings.key, set: { value } });
 }
 
 async function store(source: Source, r: PullResult, now: string): Promise<number> {
@@ -149,6 +159,7 @@ async function replace<T extends Replaceable>(table: T, sourceId: string, rows: 
 
 /** Asks every configured tool what exists, and records what isn't registered yet. */
 export async function discoverAll(): Promise<number> {
+  if (isDemo()) return 0;
   const known = await db.select({ kind: schema.sources.kind, ref: schema.sources.externalRef, config: schema.sources.config }).from(schema.sources);
   const isKnown = (kind: Source["kind"], ref: string) =>
     known.some((k) => k.kind === kind && (k.ref.replace(/-/g, "") === ref.replace(/-/g, "") || k.config.dataSourceId?.replace(/-/g, "") === ref.replace(/-/g, "")));

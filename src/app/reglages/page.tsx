@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Source } from "@/db/schema";
 import { formatRelative } from "@/lib/dates";
-import { connectors } from "@/sync";
+import { connectors, isDemo } from "@/sync";
 import { addNotionSource, adoptDiscovery, discoverNow, dismissDiscovery, toggleSource } from "@/app/actions";
 import { Card, Empty, PageHeader, Section } from "@/components/ui";
 
@@ -26,8 +26,9 @@ async function Settings() {
     db.select().from(schema.discoveries).where(eq(schema.discoveries.dismissed, false)),
     db.select({ name: schema.projects.name }).from(schema.projects),
   ]);
+  const demo = isDemo();
   const setup = Object.fromEntries(
-    await Promise.all(Object.values(connectors).map(async (c) => [c.kind, await c.missingSetup()] as const)),
+    await Promise.all(Object.values(connectors).map(async (c) => [c.kind, demo ? null : await c.missingSetup()] as const)),
   ) as Record<Source["kind"], string | null>;
 
   const input = "rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm";
@@ -43,8 +44,8 @@ async function Settings() {
               <li key={kind} className="flex items-center gap-3 px-4 py-2.5 text-sm">
                 <span className={`size-2 rounded-full ${setup[kind] ? "bg-warn" : "bg-ok"}`} />
                 <span className="w-32">{KIND_TITLE[kind]}</span>
-                <span className="flex-1 text-xs text-muted">{setup[kind] ?? "Connecté"}</span>
-                {kind === "gcal" && process.env.GOOGLE_CLIENT_ID && (
+                <span className="flex-1 text-xs text-muted">{demo ? "Mode démo : données fictives" : (setup[kind] ?? "Connecté")}</span>
+                {kind === "gcal" && !demo && process.env.GOOGLE_CLIENT_ID && (
                   <a href="/api/google/auth" className="rounded-md border border-border px-2.5 py-1 text-xs hover:bg-surface-2">
                     {setup.gcal ? "Connecter Google" : "Reconnecter"}
                   </a>

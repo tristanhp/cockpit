@@ -8,6 +8,17 @@ Cockpit pulls all of it into one local-first app built around my own method: **p
 
 > Status: **slice 1 of 12**, read-only sync with Notion, Linear and Google Calendar plus four screens. See the [roadmap](#roadmap).
 
+![Aujourd'hui: late, today and this-week tasks from Notion and Linear, today's agenda, P1 projects and upcoming milestones](docs/screenshots/aujourdhui.png)
+
+<sub>Screenshots use the built-in fictional demo dataset (`npm run demo`), not real accounts.</sub>
+
+## Try it in 30 seconds
+
+```bash
+npm install
+npm run demo   # fictional data, no API keys needed → http://localhost:3000
+```
+
 ## What it does today
 
 | Screen | Purpose |
@@ -16,6 +27,20 @@ Cockpit pulls all of it into one local-first app built around my own method: **p
 | **Tâches** | Every open task across all sources, grouped by pillar, by source or by due date |
 | **Cockpit** | Projects grouped by level with weather and next action, the max-3-P1 rule flagged, 6-week milestones |
 | **Réglages** | Source registry: per-source status and errors, on/off switches, auto-discovery of new Notion databases, Linear teams and calendars, add a Notion database by pasting its URL |
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/cockpit.png" alt="Cockpit: projects grouped by level with weather and next action"><br><sub><b>Cockpit</b>: projects by level, with weather and next action</sub></td>
+    <td width="50%"><img src="docs/screenshots/taches.png" alt="Tâches: every open task grouped by pillar"><br><sub><b>Tâches</b>: every open task, grouped by pillar</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/reglages.png" alt="Réglages: sources, detected sources and adding a Notion database"><br><sub><b>Réglages</b>: sources are data; new ones are detected and added in one click</sub></td>
+    <td width="50%"><img src="docs/screenshots/mobile.png" alt="Aujourd'hui and Tâches at phone width"><br><sub><b>Phone width</b>: the sidebar becomes a top bar and the columns stack</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/aujourdhui-light.png" alt="Aujourd'hui in light theme"><br><sub><b>Light theme</b>: follows the system setting</sub></td>
+  </tr>
+</table>
 
 ## Design principles
 
@@ -31,7 +56,7 @@ More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 Next.js 16 (App Router, Cache Components, Server Actions) · TypeScript · SQLite/libSQL + Drizzle ORM · Tailwind CSS 4 · Notion API (data sources) · Linear GraphQL API · Google Calendar API (OAuth)
 
-## Run it
+## Run it with your own accounts
 
 ```bash
 npm install
@@ -70,7 +95,7 @@ The dev server only listens on `127.0.0.1`: there is no authentication yet.
 
 ```
 config/          seed.example.json (template) · seed.local.json (yours, git-ignored)
-src/db/          Drizzle schema, libSQL client, idempotent JSON seed
+src/db/          Drizzle schema, libSQL client, idempotent JSON seed, fictional demo dataset
 src/connectors/  notion.ts · linear.ts · gcal.ts, one file per tool
 src/sync/        sync engine (projects → milestones → tasks → events) and discovery
 src/lib/         Europe/Paris date helpers, shared queries

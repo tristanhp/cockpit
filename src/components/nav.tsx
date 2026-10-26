@@ -10,12 +10,17 @@ const LINKS = [
   { href: "/reglages", label: "Réglages" },
 ];
 
-export function Nav() {
+export function Nav({ demo = false }: { demo?: boolean }) {
   const pathname = usePathname();
   return (
     <nav className="sticky top-0 z-10 flex items-center gap-1 overflow-x-auto border-b border-border bg-bg/90 px-4 py-2 backdrop-blur md:h-screen md:w-52 md:shrink-0 md:flex-col md:items-stretch md:overflow-visible md:border-b-0 md:border-r md:px-3 md:py-6">
       <div className="mr-2 shrink-0 text-sm font-semibold tracking-tight md:mb-6 md:mr-0 md:px-3">
         🧭<span className="hidden sm:inline md:inline"> Cockpit</span>
+        {demo && (
+          <span title="Données fictives, aucune connexion" className="ml-2 rounded border border-warn/40 px-1.5 py-0.5 align-middle text-[10px] font-medium uppercase tracking-wide text-warn">
+            Démo
+          </span>
+        )}
       </div>
       {LINKS.map((l) => {
         const active = l.href === "/" ? pathname === "/" : pathname.startsWith(l.href);
