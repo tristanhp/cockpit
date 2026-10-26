@@ -61,9 +61,14 @@ export type SourceConfig = {
   notesProp?: string;
   // Default Cockpit project for every item of this source
   projectName?: string;
-  // Linear: team key and Linear project name -> Cockpit project name
+  // Notion tasks: skip rows where this property is filled (e.g. a "Linear" link,
+  // when the same ticket already comes from Linear directly).
+  skipIfProp?: string;
+  // Linear: team key and Linear project name -> Cockpit project name.
+  // apiKeyEnv names the env var holding the key, one per Linear workspace.
   teamKey?: string;
   projectMap?: Record<string, string>;
+  apiKeyEnv?: string;
   // Google Calendar: what the calendar means in the planning
   calendarRole?: "travail" | "perso" | "socle" | "cours" | "engagement";
   color?: string;

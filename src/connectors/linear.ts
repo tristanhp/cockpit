@@ -1,9 +1,9 @@
 import type { Source } from "@/db/schema";
 import type { Connector, Discovered, PullResult } from "./types";
 
-async function gql<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
-  const key = process.env.LINEAR_API_KEY;
-  if (!key) throw new Error("LINEAR_API_KEY manquant dans .env.local");
+async function gql<T>(query: string, variables: Record<string, unknown> = {}, keyEnv = "LINEAR_API_KEY"): Promise<T> {
+  const key = process.env[keyEnv];
+  if (!key) throw new Error(`${keyEnv} manquant dans .env.local`);
   const res = await fetch("https://api.linear.app/graphql", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: key },
@@ -49,7 +49,7 @@ async function pull(source: Source): Promise<PullResult> {
     const data: {
       viewer: { id: string };
       issues: { nodes: IssueNode[]; pageInfo: { hasNextPage: boolean; endCursor: string } };
-    } = await gql(ISSUES, { teamKey, after });
+    } = await gql(ISSUES, { teamKey, after }, source.config.apiKeyEnv);
     viewerId = data.viewer.id;
     nodes.push(...data.issues.nodes);
     after = data.issues.pageInfo.hasNextPage ? data.issues.pageInfo.endCursor : null;
@@ -65,7 +65,7 @@ async function pull(source: Source): Promise<PullResult> {
       status: i.state.type === "started" ? "doing" : "todo",
       statusRaw: i.state.name,
       dueDate: i.dueDate,
-      projectName: i.project ? (projectMap[i.project.name] ?? i.project.name) : null,
+      projectName: i.project ? (projectMap[i.project.name] ?? source.config.projectName ?? i.project.name) : (source.config.projectName ?? null),
       assignedToMe: i.assignee ? i.assignee.id === viewerId : false,
       assigneeName: i.assignee?.name ?? null,
       priority: i.priority || null,

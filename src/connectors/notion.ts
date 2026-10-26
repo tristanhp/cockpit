@@ -191,7 +191,9 @@ async function pull(source: Source): Promise<PullResult> {
   if (source.role === "tasks") {
     return {
       configPatch,
-      tasks: pages.map((p) => {
+      tasks: pages
+        .filter((p) => !source.config.skipIfProp || !text(get(p, source.config.skipIfProp)))
+        .map((p) => {
         const s = get(p, map.statusProp);
         const raw = s?.type === "checkbox" ? (s.checkbox ? "Fait" : "À faire") : text(s);
         return {
