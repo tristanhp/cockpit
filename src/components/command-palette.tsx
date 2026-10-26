@@ -39,11 +39,22 @@ export function CommandPalette() {
         else show();
       }
     };
+    // "#rechercher" opens the palette, so a bookmark or phone shortcut can land straight in search.
+    const onHash = () => {
+      if (window.location.hash === "#rechercher") {
+        history.replaceState(null, "", window.location.pathname + window.location.search);
+        show();
+      }
+    };
+    const initial = setTimeout(onHash, 0);
     window.addEventListener("keydown", onKey);
     window.addEventListener(OPEN_EVENT, show);
+    window.addEventListener("hashchange", onHash);
     return () => {
+      clearTimeout(initial);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener(OPEN_EVENT, show);
+      window.removeEventListener("hashchange", onHash);
     };
   }, [open]);
 
@@ -86,7 +97,7 @@ export function CommandPalette() {
 
   let lastGroup = "";
   return (
-    <div className="fade-in fixed inset-0 z-50 flex items-start justify-center bg-ink/25 px-4 pt-[12vh] backdrop-blur-[2px]" onMouseDown={() => setOpen(false)}>
+    <div className="fade-in fixed inset-0 z-50 flex items-start justify-center bg-scrim px-4 pt-[12vh] backdrop-blur-md" onMouseDown={() => setOpen(false)}>
       <div
         role="dialog"
         aria-label="Palette de commandes"

@@ -72,7 +72,7 @@ function Shell({ close, eyebrow, title, children }: { close: string; eyebrow?: s
   return (
     <div className="fixed inset-0 z-40">
       <CloseOnEscape href={close} />
-      <Link href={close} scroll={false} aria-label="Fermer" className="fade-in absolute inset-0 bg-ink/20" />
+      <Link href={close} scroll={false} aria-label="Fermer" className="fade-in absolute inset-0 bg-scrim backdrop-blur-md" />
       <aside
         role="dialog"
         aria-label={title}

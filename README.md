@@ -34,7 +34,7 @@ npm run demo   # fictional data, no API keys needed → http://localhost:3000
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/tache-detail.png" alt="Task detail panel over the Tâches screen"><br><sub><b>Task detail</b>: opened from any list, from search, or by URL</sub></td>
-    <td width="50%"><img src="docs/screenshots/projet-detail.png" alt="Project detail panel in dark theme, listing the project's open tasks"><br><sub><b>Project detail</b> (dark theme): weather, next action and its open tasks across sources</sub></td>
+    <td width="50%"><img src="docs/screenshots/projet-detail.png" alt="Project detail panel in dark theme, listing the project's open tasks"><br><sub><b>Project detail</b> (dark theme): weather, next action and its open tasks across sources; the page behind is dimmed and blurred</sub></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/cockpit.png" alt="Cockpit: projects grouped by level with weather, next action and a milestone timeline"><br><sub><b>Cockpit</b>: the season's projects by level, with a milestone timeline</sub></td>

@@ -18,6 +18,7 @@
   --margin: #d2584a;        /* the red margin line, also "late" */
   --warn: #b9770e;
   --ok: #2f7d55;
+  --scrim: rgb(22 28 44 / 0.38); /* behind dialogs: dims and, with a blur, pushes the page back */
 
   --pillar-blue: #3657c9;
   --pillar-purple: #7b52c7;
@@ -42,6 +43,7 @@
     --margin: #e57b6c;
     --warn: #e2a93b;
     --ok: #62c08f;
+    --scrim: rgb(2 4 8 / 0.66);
     --pillar-blue: #7d97f0;
     --pillar-purple: #a98bea;
     --pillar-orange: #eb9a55;
@@ -66,6 +68,7 @@
   --color-margin: var(--margin);
   --color-warn: var(--warn);
   --color-ok: var(--ok);
+  --color-scrim: var(--scrim);
   --font-sans: var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --font-serif: var(--font-newsreader), Georgia, serif;
