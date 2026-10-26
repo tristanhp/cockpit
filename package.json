@@ -12,7 +12,9 @@
     "db:seed": "tsx --env-file-if-exists=.env.local src/db/seed.ts",
     "setup": "mkdir -p data && npm run db:push && npm run db:seed",
     "demo:setup": "mkdir -p data && rm -f data/demo.db && DATABASE_URL=file:data/demo.db drizzle-kit push --force && DATABASE_URL=file:data/demo.db tsx src/db/demo.ts",
-    "demo": "npm run demo:setup && COCKPIT_DEMO=1 DATABASE_URL=file:data/demo.db next dev -H 127.0.0.1"
+    "demo": "npm run demo:setup && COCKPIT_DEMO=1 DATABASE_URL=file:data/demo.db next dev -H 127.0.0.1",
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",

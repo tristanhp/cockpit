@@ -1,6 +1,6 @@
 # Cockpit — product spec
 
-Decisions validated by the owner on 26 October 2026, and the brief for the next slice.
+Decisions validated by the owner on 26 October 2026. Each slice's brief is in [slices/](slices/).
 Personal details (which accounts, which habits) stay out of this file on purpose.
 
 ## Principles
@@ -72,7 +72,7 @@ Personal details (which accounts, which habits) stay out of this file on purpose
 | Slice | Content |
 |---|---|
 | S1 ✅ | Read-only sync, Aujourd'hui / Tâches / Cockpit / Réglages, design pass, palette, detail panels, demo mode |
-| **S2** | Write-back, capture and the priority scale — brief below |
+| **S2** | Write-back, capture and the priority scale |
 | S3 | Blocks and the replan (core pain), writing to Google Calendar |
 | S4 | On the phone: Vercel + Turso, passkey, PWA, notifications |
 | S5 | Le cap and la clôture |
@@ -84,36 +84,4 @@ Personal details (which accounts, which habits) stay out of this file on purpose
 
 ---
 
-## S2 brief — write-back, capture and the priority scale
-
-Build and verify everything against `npm run demo`. In demo mode, writes only change the local DB.
-
-### 1. Priority and effort on every task and project
-- Add `priority` (0–4, Linear numbering: 0 Aucune, 1 Urgent, 2 Haute, 3 Moyenne, 4 Basse), `effort` (1/2/3/5/8 or null) and `priorityAuto` (boolean) to tasks; `priority` and `status` (`actif` | `en-attente`) to projects.
-- Automatic priority, overridable: Linear tickets use Linear's priority; Notion rows use a `Priorité` property when the base has one; otherwise derive from the project's priority, then raise to **Urgent** when a graded deliverable or a mandatory item is due within 48 h. Keep the rules in one pure function with unit tests.
-- Project priority from the old level property while it exists: P1 → Haute, P2 → Moyenne, Maintenance → Basse, En attente → status `en-attente`, Socle → flagged `protected` (habit-like, outside the scale).
-- Overrides made in Cockpit are written back when the source has the property (Linear `priority`/`estimate`, Notion `Priorité`/`Effort`), otherwise kept in a Cockpit-only `task_overrides` table.
-- UI: priority icon (Linear-style bars) and effort chip on task rows; edit both in the task detail panel.
-
-### 2. Write-back
-- Task: mark done / reopen, change due date, priority, effort. Notion: `pages.update` on the mapped properties (status → the first option of the "complete" group). Linear: `issueUpdate` (state of type `completed`, `dueDate`, `priority`, `estimate`); read the team's workflow states once and cache them in the source config.
-- Project: edit Météo, next action, next due date, priority/status.
-- Optimistic UI, then refresh. Every write is logged in a `change_log` table (who, what, before, after, source response) to support "latest edit wins, logged and undoable".
-- `x` on a focused task row toggles done; the detail panel gets real controls instead of the read-only notice.
-
-### 3. Capture and Inbox
-- `c` (desktop) and a `+` tab (phone) open a one-line capture. Parse French dates (`aujourd'hui`, `demain`, weekdays, `vendredi 18h`, `12/11`) and `#tags` (matched against project names and aliases with `fold()`).
-- Kinds: task, idea, event. When the destination is obvious (tag or rule), file it directly; otherwise store it in an `inbox` table for the clôture.
-- An **Inbox** view (reachable from the palette and the Tâches screen) lists pending captures with a suggested destination and date; one tap files each.
-- Task creation: Notion `pages.create` in the target data source (map title/status/due/priority/effort), Linear `issueCreate` in the source's team. Ideas: write a Markdown file to `VAULT_INBOX_PATH` when set, else keep them in the inbox. Events: wait for S3 (Calendar write scope); keep them in the inbox with a note.
-
-### 4. Linear triage
-- "Pas pour moi" on an unassigned or other-assigned ticket hides it from *À trier* for good (Cockpit-only flag); "Me concerne" keeps it in *Mes tâches* without reassigning in Linear.
-
-### 5. Small things
-- Dark theme always: drop the light palette from the default and make dark the only theme (keep the light tokens behind `[data-theme="light"]` for later).
-- Sync every 5 minutes while a page is open, and on window focus.
-
-### Done when
-- In demo mode: a task can be captured, filed, prioritised, estimated, completed and reopened; a Linear ticket can be marked "Pas pour moi"; every change appears in the change log.
-- Lint, typecheck and build pass; demo data covers every new table; README screenshots refreshed from the demo.
+Per-slice briefs, with their "Done when" lists, are in [slices/](slices/). Status is tracked in [PROGRESS.md](PROGRESS.md); how a session builds a slice is in [WORKFLOW.md](WORKFLOW.md).

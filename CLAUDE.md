@@ -2,14 +2,18 @@
 
 # Cockpit — working notes for Claude
 
+## Start here
+
+To build the next slice, follow [docs/WORKFLOW.md](docs/WORKFLOW.md): it finds the first `todo` slice in [docs/PROGRESS.md](docs/PROGRESS.md), builds it from its brief in `docs/slices/`, verifies it in demo mode and opens a pull request. **One slice per session, then stop.** A slash command does the same: `/next-slice`.
+
 Personal life dashboard (French UI) that syncs Notion, Linear and Google Calendar into one local-first app.
-Read before coding: [README.md](README.md) (what exists), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (how it works), [docs/SPEC.md](docs/SPEC.md) (product decisions and the next slice to build).
+Read before coding: [README.md](README.md) (what exists), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (how it works), [docs/SPEC.md](docs/SPEC.md) (product decisions), [docs/PROGRESS.md](docs/PROGRESS.md) (which slice is next).
 
 ## Run and check
 
 - `npm run demo` — fictional dataset, no API keys, `COCKPIT_DEMO=1`. **Use this in cloud sessions**: real accounts are not reachable there.
 - `npm run dev` — real data; needs `.env.local` and `config/seed.local.json` (both git-ignored, only on the owner's machine).
-- Before every commit: `npm run lint`, `npm run typecheck`, `npm run build`. All must pass.
+- Before every commit: `npm run check` (lint, typecheck, unit tests, build). All must pass. Run just the tests with `npm test`; tests live next to the code as `*.test.ts` (Node's test runner through `tsx`).
 - Changing the DB schema: edit `src/db/schema.ts`, then `npm run db:push` (and `npm run demo:setup` for the demo DB). Keep `src/db/demo.ts` able to fill every new table.
 
 ## Next.js 16 specifics (this is not the Next.js you know)
