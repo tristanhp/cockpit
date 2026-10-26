@@ -2,6 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 import { Nav } from "@/components/nav";
 import { CommandPalette } from "@/components/command-palette";
+import { AutoSync } from "@/components/auto-sync";
+import { CaptureDialog } from "@/components/capture-dialog";
+import { Toaster } from "@/components/feedback";
+import { KeyboardLayer } from "@/components/keyboard-layer";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -28,6 +32,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </main>
         <CommandPalette />
+        <CaptureDialog />
+        <KeyboardLayer />
+        <AutoSync />
+        <Toaster />
       </body>
     </html>
   );

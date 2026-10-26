@@ -6,7 +6,7 @@ The next slice to build is the first `todo`. Sessions update this file in their 
 | Slice | Name | Status | Branch / PR | Notes |
 |---|---|---|---|---|
 | S1 | Read-only sync, four screens, design pass, palette, detail panels, demo mode | done | main | |
-| S2 | Write-back, capture and the priority scale | todo | | [brief](slices/S2.md) |
+| S2 | Write-back, capture and the priority scale | in review | `slice/s2-write-back` | Priority and effort, write-back to Notion and Linear with a change journal and undo, capture (`c`, `/api/capture`) and Inbox, Linear triage, dark default. 2026-10-27. [brief](slices/S2.md) |
 | S3 | Blocks and the replan | todo | | [brief](slices/S3.md) |
 | S4 | On the phone: auth, PWA, notifications | todo | | [brief](slices/S4.md) |
 | S5 | Le cap and la clôture | todo | | [brief](slices/S5.md) |

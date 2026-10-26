@@ -39,7 +39,7 @@ async function Today({ searchParams }: PageProps<"/">) {
   // Linear tickets not assigned to you: only the ones due soon belong on today's page.
   const allTriage = tasks.filter(needsTriage);
   const triage = allTriage.filter((t) => t.dueDate && t.dueDate <= addDays(today, 14));
-  const p1 = ctx.projects.filter((p) => p.levelId === "p1");
+  const p1 = ctx.projects.filter((p) => p.status === "actif" && !p.protected && p.priority === 2);
   const maxP1 = ctx.levels.find((l) => l.id === "p1")?.maxProjects ?? 3;
 
   const horizon = [
@@ -92,7 +92,7 @@ async function Today({ searchParams }: PageProps<"/">) {
             {events.length ? <Timeline events={events} day={today} /> : <Empty>Page blanche : aucun événement aujourd&apos;hui.</Empty>}
           </Section>
 
-          <Section title="Les piliers" count={p1.length} aside={p1.length > maxP1 ? <span className="text-warn">P1 · max {maxP1}</span> : "P1"}>
+          <Section title="Les piliers" count={p1.length} aside={p1.length > maxP1 ? <span className="text-warn">Haute · max {maxP1}</span> : "Haute"}>
             {p1.length ? (
               <ul>
                 {p1.map((p) => (
@@ -109,7 +109,7 @@ async function Today({ searchParams }: PageProps<"/">) {
                 ))}
               </ul>
             ) : (
-              <Empty>Aucun projet P1 pour l&apos;instant.</Empty>
+              <Empty>Aucun projet de priorité haute pour l&apos;instant.</Empty>
             )}
           </Section>
 

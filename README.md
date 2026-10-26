@@ -76,14 +76,28 @@ Then connect Google in **Réglages** and click **Synchroniser** on **Aujourd'hui
 - **Linear**: personal API key. Tickets not assigned to you are shown for triage and never reassigned.
 - **Google Calendar**: OAuth client (web application) with redirect URI `http://localhost:3000/api/google/callback`. Each calendar gets a role (`travail`, `perso`, `socle`, `cours`, `engagement`) that later slices use for time-blocking.
 
+Write-back needs write access: give the Notion integration **update** and **insert** content capabilities, and use a Linear key that can edit issues.
+
 The dev server only listens on `127.0.0.1`: there is no authentication yet.
+
+### Capture from a phone shortcut
+
+Set `COCKPIT_CAPTURE_TOKEN` in `.env.local`, then:
+
+```bash
+curl -X POST http://127.0.0.1:3000/api/capture \
+  -H "Authorization: Bearer $COCKPIT_CAPTURE_TOKEN" -H "Content-Type: application/json" \
+  -d '{ "text": "Rendre le TP vendredi 18h #memoire" }'
+```
+
+The text is parsed like the in-app capture (`c`): French dates and hours, `#tags` matched to projects, `idée :` or `rdv :` prefixes. It answers `{ "status": "filed" | "inbox", "message": "…" }`, or `401` without the right token. Ideas are written as Markdown files to `VAULT_INBOX_PATH` when that variable is set.
 
 ## Roadmap
 
 | # | Slice | Status |
 |---|---|---|
 | 1 | Read-only sync (Notion, Linear, Google Calendar) · Aujourd'hui / Tâches / Cockpit / Réglages | ✅ |
-| 2 | Edit project weather, next action and level from the app, written back to Notion | ⏳ |
+| 2 | Write-back, capture and the priority scale | ⏳ in review |
 | 3 | Guided daily and weekly reviews (3 min and 10 min), saved back to Notion | |
 | 4 | Task write-back, routed to the right source · quick capture inbox | |
 | 5 | Deterministic time-blocking engine (Socle → P1 → P2 → Maintenance) writing to Google Calendar | |
@@ -100,7 +114,10 @@ The dev server only listens on `127.0.0.1`: there is no authentication yet.
 ```
 config/          seed.example.json (template) · seed.local.json (yours, git-ignored)
 src/db/          Drizzle schema, libSQL client, idempotent JSON seed, fictional demo dataset
-src/connectors/  notion.ts · linear.ts · gcal.ts, one file per tool
+src/connectors/  notion.ts · linear.ts · gcal.ts, one file per tool (pull, and write-back for Notion and Linear)
+src/engine/      pure rules with unit tests: priority, capture parsing and routing, conflicts
+src/writeback/   the one place every source write goes through (checks demo mode, logs, undo)
+src/capture/     capture → task in a source, or the Inbox
 src/sync/        sync engine (projects → milestones → tasks → events) and discovery
 src/lib/         Europe/Paris date helpers, shared queries
 src/app/         screens, server actions, API routes (/api/sync, Google OAuth)

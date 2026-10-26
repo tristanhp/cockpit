@@ -3,6 +3,7 @@
 // Nothing here comes from a real account.
 import { db, schema } from "./index";
 import { addDays, parisDay } from "@/lib/dates";
+import { computePriority, projectScaleFromLevel } from "@/engine/priority";
 
 const today = parisDay();
 const day = (n: number) => addDays(today, n);
@@ -39,6 +40,9 @@ const sources = [
   ["gcal-sport", "gcal", "events", "Sport", 1],
   ["gcal-cours", "gcal", "events", "Cours", 3],
 ] as const;
+
+// Course deliverables are graded: due within 48 h they become Urgent.
+const gradedSources = new Set(["notion-cours"]);
 
 const calendarRole: Record<string, "travail" | "socle" | "cours" | "engagement"> = {
   "gcal-principal": "engagement",
@@ -108,29 +112,63 @@ async function main() {
     sources.map(([id, kind, role, name, count]) => ({
       id, kind, role, name,
       externalRef: `demo-${id}`,
-      config: kind === "gcal" ? { calendarRole: calendarRole[id] } : {},
+      config: kind === "gcal" ? { calendarRole: calendarRole[id] } : gradedSources.has(id) ? { graded: true } : id === "linear-covoit" ? { teamKey: "COV" } : {},
       lastSyncAt: now,
       lastSyncCount: count,
     })),
   );
 
+  const levelName = (levelId: string) => levels.find((l) => l[0] === levelId)![1];
+  const scaleOf = new Map<string, ReturnType<typeof projectScaleFromLevel>>(projects.map(([id, , , levelId]) => [id, projectScaleFromLevel(levelName(levelId))]));
   await db.insert(schema.projects).values(
     projects.map(([id, name, pillarId, levelId, meteo, nextAction, due]) => ({
       id: `notion-projets:${id}`, sourceId: "notion-projets", externalId: id, name, pillarId, levelId, meteo, nextAction,
-      nextDue: due === null ? null : day(due), syncedAt: now,
+      nextDue: due === null ? null : day(due), syncedAt: now, ...scaleOf.get(id)!,
     })),
   );
 
+  // Linear priorities (1 Urgent … 4 Basse) and estimates for the demo tickets; efforts for a few Notion rows.
+  const linearPriority: Record<string, number> = { "COV-14": 2, "COV-17": 3, "COV-19": 4, "COV-21": 3 };
+  const efforts: Record<number, number> = { 0: 1, 2: 3, 3: 2, 4: 3, 5: 5, 6: 5, 7: 3, 11: 3, 12: 5, 13: 8 };
   await db.insert(schema.tasks).values(
-    tasks.map(([sourceId, title, project, due, status, statusRaw, extra = {}], i) => ({
-      id: `${sourceId}:t${i}`, sourceId, externalId: `t${i}`, identifier: extra.id ?? null, title, status, statusRaw,
-      dueDate: due === null ? null : day(due),
-      projectId: project ? `notion-projets:${project}` : null,
-      assignedToMe: sourceId.startsWith("linear") ? Boolean(extra.mine) : null,
-      assigneeName: extra.mine ? "Camille" : (extra.who ?? null),
-      syncedAt: now,
-    })),
+    tasks.map(([sourceId, title, project, due, status, statusRaw, extra = {}], i) => {
+      const isLinear = sourceId.startsWith("linear");
+      const computed = computePriority({
+        sourceKind: isLinear ? "linear" : "notion",
+        sourcePriority: isLinear ? (linearPriority[extra.id ?? ""] ?? 0) : null,
+        projectPriority: project ? scaleOf.get(project)!.priority : null,
+        dueDate: due === null ? null : day(due),
+        today,
+        graded: gradedSources.has(sourceId),
+      });
+      return {
+        id: `${sourceId}:t${i}`, sourceId, externalId: `t${i}`, identifier: extra.id ?? null, title, status, statusRaw,
+        dueDate: due === null ? null : day(due),
+        projectId: project ? `notion-projets:${project}` : null,
+        assignedToMe: isLinear ? Boolean(extra.mine) : null,
+        assigneeName: extra.mine ? "Camille" : (extra.who ?? null),
+        priority: computed.priority,
+        priorityAuto: computed.auto,
+        effort: efforts[i] ?? null,
+        syncedAt: now,
+      };
+    }),
   );
+
+  await db.insert(schema.routingRules).values([
+    { id: "rule-kine", pattern: "kiné", sourceId: "notion-taches", projectId: "notion-projets:admin", sortOrder: 1 },
+    { id: "rule-tp", pattern: "re:^TP ", sourceId: "notion-cours", projectId: "notion-projets:memoire", sortOrder: 2 },
+    { id: "rule-default", pattern: "*", sourceId: "notion-taches", projectId: null, sortOrder: 99 },
+  ]);
+  await db.insert(schema.inbox).values([
+    { id: "inbox-1", text: "Renouveler l'abonnement transport vendredi", kind: "task", title: "Renouveler l'abonnement transport", dueDate: day(((5 - new Date(`${today}T12:00:00Z`).getUTCDay() + 7) % 7) || 7), suggestedSourceId: "notion-taches", note: null, createdAt: now },
+    { id: "inbox-2", text: "idée : playlist pour les sorties longues", kind: "idea", title: "playlist pour les sorties longues", note: "Aucun dossier de coffre configuré (VAULT_INBOX_PATH) : l'idée reste ici.", createdAt: now },
+    { id: "inbox-3", text: "rdv : dentiste jeudi 14h", kind: "event", title: "dentiste", dueDate: day(((4 - new Date(`${today}T12:00:00Z`).getUTCDay() + 7) % 7) || 7), dueTime: "14:00", note: "Les événements restent ici jusqu'à l'écriture dans l'agenda.", createdAt: now },
+  ]);
+  await db.insert(schema.changeLog).values({
+    at: now, entity: "task", entityId: "notion-taches:t1", label: "Prendre rendez-vous chez le kiné", field: "dueDate",
+    before: day(1), after: day(0), source: "notion-taches", response: "démo : base locale uniquement",
+  });
 
   await db.insert(schema.milestones).values(
     milestones.map(([name, offset, type, approximate], i) => ({

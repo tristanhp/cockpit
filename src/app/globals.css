@@ -3,9 +3,33 @@
 /*
   Direction: a French "grands carreaux" notebook.
   Cool white paper, faint blue-violet ruling, a red margin line, blue-black fountain-pen ink.
-  Dark theme: the same notebook at night, in deep ink.
+  Dark is the default: the same notebook at night, in deep ink. The paper tokens live behind [data-theme="light"].
 */
 :root {
+  --desk: #0b0e13;
+  --paper: #11151c;
+  --paper-2: #181d26;
+  --rule: #1f2531;
+  --rule-strong: #2c3442;
+  --ink: #e6e8ee;
+  --ink-soft: #a0a8b8;
+  --ink-faint: #616a7b;
+  --accent: #93a9ff;
+  --margin: #e57b6c;
+  --warn: #e2a93b;
+  --ok: #62c08f;
+  --scrim: rgb(2 4 8 / 0.66);
+  --pillar-blue: #7d97f0;
+  --pillar-purple: #a98bea;
+  --pillar-orange: #eb9a55;
+  --pillar-pink: #e57fb1;
+  --pillar-green: #6cc092;
+  --pillar-yellow: #dcb84a;
+  --pillar-gray: #9aa0ad;
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
   --desk: #eceef1;          /* around the page */
   --paper: #fbfbfa;         /* the page itself */
   --paper-2: #f2f3f6;       /* hover, inset */
@@ -27,32 +51,7 @@
   --pillar-green: #3d8b5f;
   --pillar-yellow: #b8901c;
   --pillar-gray: #7d8290;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --desk: #0b0e13;
-    --paper: #11151c;
-    --paper-2: #181d26;
-    --rule: #1f2531;
-    --rule-strong: #2c3442;
-    --ink: #e6e8ee;
-    --ink-soft: #a0a8b8;
-    --ink-faint: #616a7b;
-    --accent: #93a9ff;
-    --margin: #e57b6c;
-    --warn: #e2a93b;
-    --ok: #62c08f;
-    --scrim: rgb(2 4 8 / 0.66);
-    --pillar-blue: #7d97f0;
-    --pillar-purple: #a98bea;
-    --pillar-orange: #eb9a55;
-    --pillar-pink: #e57fb1;
-    --pillar-green: #6cc092;
-    --pillar-yellow: #dcb84a;
-    --pillar-gray: #9aa0ad;
-    color-scheme: dark;
-  }
+  color-scheme: light;
 }
 
 @theme inline {

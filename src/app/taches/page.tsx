@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { addDays, parisDay } from "@/lib/dates";
-import { loadContext, needsTriage, openTasks, type TaskView } from "@/lib/queries";
+import { loadContext, needsTriage, openTasks, pendingInbox, type TaskView } from "@/lib/queries";
 import { PageHeader, PillarDot, Section, TaskList } from "@/components/ui";
 import { DetailPanel } from "@/components/detail-panel";
 
@@ -23,7 +23,7 @@ async function Tasks({ searchParams }: PageProps<"/taches">) {
   const group = (["pilier", "source", "echeance"].includes(String(sp.par)) ? sp.par : "pilier") as Group;
   const triageView = sp.trier === "1";
   const today = parisDay();
-  const [all, ctx] = await Promise.all([openTasks(), loadContext()]);
+  const [all, ctx, inbox] = await Promise.all([openTasks(), loadContext(), pendingInbox()]);
   const tasks = triageView ? all.filter(needsTriage) : all.filter((t) => !needsTriage(t));
 
   const groups: { key: string; title: string; pillar?: (typeof ctx.pillars)[number]; items: TaskView[] }[] = [];
@@ -61,6 +61,7 @@ async function Tasks({ searchParams }: PageProps<"/taches">) {
         <div className="flex items-center gap-4">
           <Link href={href(group, false)} className={tab(!triageView)}>Mes tâches</Link>
           <Link href={href(group, true)} className={tab(triageView)}>Linear à trier · {all.filter(needsTriage).length}</Link>
+          <Link href="/inbox" className={tab(false)}>Inbox · {inbox.length}</Link>
         </div>
       </div>
 

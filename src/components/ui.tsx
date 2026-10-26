@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Pillar, Source } from "@/db/schema";
 import { daysFrom, formatDayCompact } from "@/lib/dates";
 import type { TaskView } from "@/lib/queries";
+import { PRIORITY_LABEL } from "@/engine/priority";
 import { DetailLink } from "./detail-link";
 
 export function PageHeader({ eyebrow, title, subtitle, children }: { eyebrow?: ReactNode; title: ReactNode; subtitle?: ReactNode; children?: ReactNode }) {
@@ -61,10 +62,42 @@ export function DueLabel({ due, today, className = "" }: { due: string | null; t
   return <span className={`shrink-0 whitespace-nowrap font-mono text-xs tabular-nums ${tone} ${className}`}>{label}</span>;
 }
 
+/** Linear-style priority: three bars (fewer = lower), a stamped square for Urgent, dashes for none. */
+export function PriorityBars({ priority, className = "" }: { priority: number | null; className?: string }) {
+  const p = priority ?? 0;
+  const label = PRIORITY_LABEL[p] ?? "Aucune";
+  if (p === 1)
+    return (
+      <svg viewBox="0 0 16 16" className={`size-4 shrink-0 text-margin ${className}`} role="img" aria-label={label}>
+        <title>{label}</title>
+        <rect x="1.5" y="1.5" width="13" height="13" rx="3" fill="currentColor" />
+        <path d="M8 4.5v4.2M8 10.6v1" stroke="var(--paper)" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    );
+  const lit = p === 0 ? 0 : 5 - p; // Haute 3, Moyenne 2, Basse 1
+  return (
+    <svg viewBox="0 0 16 16" className={`size-4 shrink-0 ${p === 0 ? "text-ink-faint" : "text-ink-soft"} ${className}`} role="img" aria-label={label}>
+      <title>{label}</title>
+      {[0, 1, 2].map((i) => (
+        <rect key={i} x={2 + i * 4.5} y={11 - i * 3.5} width="3" height={3 + i * 3.5} rx="0.8" fill="currentColor" opacity={i < lit ? 1 : 0.25} />
+      ))}
+    </svg>
+  );
+}
+
+export function EffortChip({ effort }: { effort: number | null }) {
+  if (!effort) return null;
+  return (
+    <span title={`${effort} point${effort > 1 ? "s" : ""} d'effort`} className="shrink-0 rounded-sm border border-rule-strong px-1 font-mono text-[11px] leading-4 text-ink-soft">
+      {effort}
+    </span>
+  );
+}
+
 export function TaskRow({ task, today }: { task: TaskView; today: string }) {
   const triage = task.source.kind === "linear" && !task.assignedToMe;
   return (
-    <li className="group border-b border-rule last:border-b-0">
+    <li data-task-id={task.id} data-done={task.status === "done" ? "1" : "0"} className="group border-b border-rule transition-opacity last:border-b-0">
       <DetailLink param="t" id={task.id} className="flex items-start gap-3 py-2.5 hover:bg-paper-2/60">
         <PillarDot pillar={task.pillar} className="mt-[7px]" />
         <div className="min-w-0 flex-1">
@@ -74,6 +107,8 @@ export function TaskRow({ task, today }: { task: TaskView; today: string }) {
               {task.title}
             </span>
             <span className="leader" aria-hidden />
+            <EffortChip effort={task.effort} />
+            <PriorityBars priority={task.priority} className="self-center" />
             <DueLabel due={task.dueDate} today={today} />
           </div>
           <div className="mt-0.5 truncate text-xs text-ink-faint">
