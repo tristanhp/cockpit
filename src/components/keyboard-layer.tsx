@@ -39,6 +39,8 @@ export function KeyboardLayer() {
       const target = e.target as HTMLElement;
       if (e.ctrlKey || e.metaKey || e.altKey || target.closest("input, textarea, select, [contenteditable], [role=dialog][aria-label='Palette de commandes'], [role=dialog][aria-label='Capture rapide']")) return;
       const key = e.key.toLowerCase();
+      // Digits by physical key: on AZERTY the unshifted digit row types & é " ' ( instead of 1 2 3 4 5.
+      const digit = /^(?:Digit|Numpad)(\d)$/.exec(e.code)?.[1] ?? (/^\d$/.test(key) ? key : null);
 
       if (chord) {
         const mode = chord;
@@ -46,12 +48,13 @@ export function KeyboardLayer() {
         clearTimeout(timer);
         const task = focusedTask();
         if (!task) return;
-        if (mode === "p" && /^[0-4]$/.test(key)) {
+        if (digit === null) return;
+        if (mode === "p" && /^[0-4]$/.test(digit)) {
           e.preventDefault();
-          void write(task, "priority", Number(key), `Priorité : ${PRIORITY_LABEL[Number(key)]}`);
-        } else if (mode === "e" && (EFFORTS as readonly number[]).includes(Number(key))) {
+          void write(task, "priority", Number(digit), `Priorité : ${PRIORITY_LABEL[Number(digit)]}`);
+        } else if (mode === "e" && (EFFORTS as readonly number[]).includes(Number(digit))) {
           e.preventDefault();
-          void write(task, "effort", Number(key), `Effort : ${key} pt${Number(key) > 1 ? "s" : ""}`);
+          void write(task, "effort", Number(digit), `Effort : ${digit} pt${Number(digit) > 1 ? "s" : ""}`);
         }
         return;
       }
