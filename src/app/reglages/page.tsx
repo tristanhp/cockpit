@@ -1,11 +1,14 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Source } from "@/db/schema";
-import { formatRelative } from "@/lib/dates";
+import { formatDayCompact, formatRelative } from "@/lib/dates";
+import { PRIORITY_LABEL } from "@/engine/priority";
+import { hasWriteScope } from "@/connectors/gcal";
 import { connectors, isDemo } from "@/sync";
-import { addNotionSource, adoptDiscovery, discoverNow, dismissDiscovery, toggleSource } from "@/app/actions";
+import { addNotionSource, addRoutingRule, adoptDiscovery, deleteRoutingRule, discoverNow, dismissDiscovery, toggleSource } from "@/app/actions";
+import { UndoButton } from "@/components/undo-button";
 import { Empty, PageHeader, Section } from "@/components/ui";
 
 const KIND_TITLE: Record<Source["kind"], string> = { notion: "Notion", linear: "Linear", gcal: "Google Agenda" };
@@ -24,15 +27,27 @@ const ghostButton = "rounded-md border border-rule-strong px-2.5 py-1 text-xs ho
 
 async function Settings() {
   await connection();
-  const [sources, discoveries, projects] = await Promise.all([
+  const [sources, discoveries, projects, journal, rules] = await Promise.all([
     db.select().from(schema.sources),
     db.select().from(schema.discoveries).where(eq(schema.discoveries.dismissed, false)),
-    db.select({ name: schema.projects.name }).from(schema.projects),
+    db.select({ id: schema.projects.id, name: schema.projects.name }).from(schema.projects),
+    db.select().from(schema.changeLog).orderBy(desc(schema.changeLog.at), desc(schema.changeLog.id)).limit(50),
+    db.select().from(schema.routingRules).orderBy(schema.routingRules.sortOrder),
   ]);
+  const taskSources = sources.filter((s) => s.role === "tasks");
+  const FIELD_LABEL: Record<string, string> = { done: "statut", dueDate: "échéance", priority: "priorité", effort: "effort", meteo: "météo", nextAction: "prochaine action", nextDue: "échéance", status: "statut", create: "création" };
+  const show = (field: string, v: unknown) => {
+    if (v === null || v === undefined || v === "") return "—";
+    if (field === "priority") return PRIORITY_LABEL[Number(v)] ?? String(v);
+    if (field === "done") return v ? "terminée" : "ouverte";
+    if ((field === "dueDate" || field === "nextDue") && /^\d{4}-\d{2}-\d{2}$/.test(String(v))) return formatDayCompact(String(v));
+    return String(v);
+  };
   const demo = isDemo();
   const setup = Object.fromEntries(
     await Promise.all(Object.values(connectors).map(async (c) => [c.kind, demo ? null : await c.missingSetup()] as const)),
   ) as Record<Source["kind"], string | null>;
+  const needsWrite = !demo && !setup.gcal && !(await hasWriteScope());
 
   return (
     <>
@@ -81,6 +96,67 @@ async function Settings() {
               </Section>
             );
           })}
+
+          <div id="journal">
+            <Section title="Journal des changements" count={journal.length} aside="50 derniers">
+              {journal.length ? (
+                <ul>
+                  {journal.map((c) => (
+                    <li key={c.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-b border-rule py-2.5 text-sm last:border-b-0">
+                      <span className="w-24 shrink-0 font-mono text-xs tabular-nums text-ink-faint" title={c.at}>{formatRelative(c.at)}</span>
+                      <span className={`min-w-0 flex-1 ${c.undone ? "text-ink-faint line-through" : ""}`}>
+                        {c.label}
+                        <span className="ml-2 text-xs text-ink-faint">
+                          {c.source === "sync" ? "conflit · " : ""}
+                          {FIELD_LABEL[c.field] ?? c.field}
+                          {c.field !== "create" && <> : {show(c.field, c.before)} → {show(c.field, c.after)}</>}
+                        </span>
+                      </span>
+                      <span className="text-xs text-ink-faint" title={c.response ?? undefined}>{c.source === "cockpit" ? "Cockpit" : c.source === "sync" ? "synchro" : (sources.find((s) => s.id === c.source)?.name ?? c.source)}</span>
+                      {!c.undone && c.source !== "sync" && c.field !== "create" ? <UndoButton id={c.id} /> : c.undone ? <span className="text-xs text-ink-faint">annulé</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Empty>Aucun changement pour l&apos;instant.</Empty>
+              )}
+            </Section>
+          </div>
+
+          <Section title="Règles de rangement" count={rules.length} aside="capture → destination">
+            {rules.length > 0 && (
+              <ul>
+                {rules.map((r) => (
+                  <li key={r.id} className="flex items-baseline gap-3 border-b border-rule py-2 text-sm last:border-b-0">
+                    <code className="font-mono text-xs">{r.pattern}</code>
+                    <span className="min-w-0 flex-1 truncate text-ink-soft">
+                      → {sources.find((s) => s.id === r.sourceId)?.name ?? r.sourceId}
+                      {r.projectId && <> · {projects.find((p) => p.id === r.projectId)?.name}</>}
+                    </span>
+                    <form action={deleteRoutingRule.bind(null, r.id)}>
+                      <button className="text-xs text-ink-faint hover:text-ink">Retirer</button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <form action={addRoutingRule} className="mt-3 flex flex-wrap items-center gap-2">
+              <input id="rule-pattern" name="pattern" required placeholder="mot, #tag ou re:motif" className={`${input} w-44`} />
+              <select id="rule-source" name="sourceId" className={`${input} w-auto`} defaultValue={taskSources[0]?.id}>
+                {taskSources.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <select id="rule-project" name="projectId" className={`${input} w-auto`} defaultValue="">
+                <option value="">Sans projet</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <button className={ghostButton}>Ajouter</button>
+            </form>
+            <p className="mt-2 text-xs text-ink-faint">Le motif <code className="font-mono">*</code> sert de destination suggérée pour tout ce qui n&apos;a pas de règle ; il n&apos;est jamais rangé tout seul.</p>
+          </Section>
         </div>
 
         <aside className="min-w-0">
@@ -92,6 +168,9 @@ async function Settings() {
                   <span className="flex-1">{KIND_TITLE[kind]}</span>
                   {kind === "gcal" && !demo && process.env.GOOGLE_CLIENT_ID && (
                     <a href="/api/google/auth" className={ghostButton}>{setup.gcal ? "Connecter" : "Reconnecter"}</a>
+                  )}
+                  {kind === "gcal" && needsWrite && (
+                    <a href="/api/google/auth" className={`${ghostButton} border-warn text-warn`}>Reconnecter pour autoriser l&apos;écriture</a>
                   )}
                   <span className="w-full pl-5 text-xs text-ink-faint">{demo ? "Mode démo : données fictives" : (setup[kind] ?? "Connecté")}</span>
                 </li>

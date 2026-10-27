@@ -6,6 +6,9 @@ import { db, schema } from "@/db";
 import type { Source } from "@/db/schema";
 import { resolveDataSourceId } from "@/connectors/notion";
 import { discoverAll, syncAll } from "@/sync";
+import { applyDayReplan, applyReplanOption, reconcileBlocks, scheduleTask, setTypeRate, type Option } from "@/planning";
+import { captureText, fileAllInbox, fileInboxItem, type CaptureOutcome } from "@/capture";
+import { changeProject, changeTask, undoChange, type ProjectField, type TaskField } from "@/writeback";
 import { openTasks } from "@/lib/queries";
 import { fold } from "@/lib/text";
 
@@ -14,6 +17,7 @@ import { fold } from "@/lib/text";
 
 export async function syncNow() {
   const report = await syncAll();
+  await reconcileBlocks();
   refresh();
   return report;
 }
@@ -97,4 +101,110 @@ export async function searchEverything(query: string): Promise<SearchHit[]> {
     .slice(0, 5)
     .map((p) => ({ id: p.id, kind: "project" as const, label: p.name, hint: p.meteo ?? undefined, href: `/cockpit?p=${encodeURIComponent(p.id)}` }));
   return [...projectHits, ...taskHits];
+}
+
+
+// ---- Write-back -------------------------------------------------------------
+// Each action returns `{ ok: false, error }` instead of throwing, so the client can
+// roll the optimistic row back and show the message in French.
+
+export type ActionResult = { ok: true } | { ok: false; error: string };
+
+async function run(fn: () => Promise<unknown>): Promise<ActionResult> {
+  try {
+    await fn();
+    refresh();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Une erreur est survenue" };
+  }
+}
+
+export async function setTaskField(taskId: string, field: TaskField, value: string | number | boolean | null) {
+  return run(() => changeTask(taskId, field, value));
+}
+
+export async function setProjectField(projectId: string, field: ProjectField, value: string | number | null) {
+  return run(() => changeProject(projectId, field, value));
+}
+
+export async function undoChangeAction(id: number) {
+  return run(() => undoChange(id));
+}
+
+/** Linear triage: "Pas pour moi" hides the ticket for good, "Me concerne" keeps it in Mes tâches. */
+export async function triageTask(taskId: string, choice: "hidden" | "mine" | "reset") {
+  return run(() =>
+    db
+      .insert(schema.taskOverrides)
+      .values({ taskId, hidden: choice === "hidden", mine: choice === "mine", updatedAt: new Date().toISOString() })
+      .onConflictDoUpdate({
+        target: schema.taskOverrides.taskId,
+        set: { hidden: choice === "hidden", mine: choice === "mine", updatedAt: new Date().toISOString() },
+      }),
+  );
+}
+
+// ---- Capture and Inbox ------------------------------------------------------
+
+export async function capture(text: string): Promise<(CaptureOutcome & { ok: true }) | { ok: false; error: string }> {
+  try {
+    const outcome = await captureText(text);
+    refresh();
+    return { ok: true, ...outcome };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Une erreur est survenue" };
+  }
+}
+
+export async function fileInbox(id: string, sourceId?: string, projectId?: string | null) {
+  return run(() => fileInboxItem(id, sourceId, projectId));
+}
+
+export async function fileEverything(): Promise<ActionResult & { filed?: number; failed?: string[] }> {
+  try {
+    const { filed, failed } = await fileAllInbox();
+    refresh();
+    return failed.length ? { ok: false, error: failed.join(" · "), filed, failed } : { ok: true, filed, failed };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Une erreur est survenue" };
+  }
+}
+
+export async function dismissInbox(id: string) {
+  return run(() => db.update(schema.inbox).set({ status: "dismissed" }).where(eq(schema.inbox.id, id)));
+}
+
+export async function addRoutingRule(formData: FormData) {
+  const pattern = String(formData.get("pattern") ?? "").trim();
+  const sourceId = String(formData.get("sourceId") ?? "");
+  const projectId = String(formData.get("projectId") ?? "") || null;
+  if (!pattern || !sourceId) return;
+  await db.insert(schema.routingRules).values({ id: crypto.randomUUID(), pattern, sourceId, projectId, sortOrder: Date.now() % 1e9 });
+  refresh();
+}
+
+export async function deleteRoutingRule(id: string) {
+  await db.delete(schema.routingRules).where(eq(schema.routingRules.id, id));
+  refresh();
+}
+
+
+// ---- Blocks and the replan --------------------------------------------------
+
+export async function replanBlock(blockId: string, key: Option["key"]) {
+  return run(() => applyReplanOption(blockId, key));
+}
+
+export async function replanMyDay() {
+  return run(() => applyDayReplan());
+}
+
+/** Plans a block for a task: `start` is a Paris local "YYYY-MM-DDTHH:mm", or omitted to let Cockpit choose. */
+export async function planBlock(taskId: string, start?: string) {
+  return run(() => scheduleTask(taskId, start));
+}
+
+export async function answerTypeRate(name: string, minutes: number) {
+  return run(() => setTypeRate(name, minutes));
 }

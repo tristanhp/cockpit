@@ -4,7 +4,7 @@ import { and, gte, lte } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { formatDayCompact, formatDayMonth, parisDay } from "@/lib/dates";
 import { loadContext, upcomingMilestones } from "@/lib/queries";
-import { DueLabel, Empty, Meteo, PageHeader, PillarDot, Section } from "@/components/ui";
+import { DueLabel, Empty, Meteo, PageHeader, PillarDot, PriorityBars, Section } from "@/components/ui";
 import { DetailLink } from "@/components/detail-link";
 import { DetailPanel } from "@/components/detail-panel";
 
@@ -26,6 +26,18 @@ async function Cockpit({ searchParams }: PageProps<"/cockpit">) {
     db.select().from(schema.seasons).where(and(lte(schema.seasons.startDate, today), gte(schema.seasons.endDate, today))),
   ]);
   const season = seasons[0];
+  const maxHaute = ctx.levels.find((l) => l.id === "p1")?.maxProjects ?? null;
+  const active = ctx.projects.filter((p) => p.status === "actif");
+  const byPriority = (n: number) => active.filter((p) => !p.protected && (p.priority ?? 0) === n);
+  const groups = [
+    { key: "protege", title: "Habitudes protégées", rule: "jamais sacrifiées", max: null, projects: active.filter((p) => p.protected) },
+    { key: "urgent", title: "Urgent", rule: "", max: null, projects: byPriority(1) },
+    { key: "haute", title: "Haute", rule: "les priorités qui font avancer la saison", max: maxHaute, projects: byPriority(2) },
+    { key: "moyenne", title: "Moyenne", rule: "", max: null, projects: byPriority(3) },
+    { key: "basse", title: "Basse", rule: "on garde en vie", max: null, projects: byPriority(4) },
+    { key: "aucune", title: "Sans priorité", rule: "", max: null, projects: byPriority(0) },
+    { key: "attente", title: "En attente", rule: "rien à faire pour l'instant", max: null, projects: ctx.projects.filter((p) => p.status === "en-attente") },
+  ].filter((g) => g.projects.length || ["haute", "moyenne"].includes(g.key));
 
   return (
     <>
@@ -37,19 +49,18 @@ async function Cockpit({ searchParams }: PageProps<"/cockpit">) {
 
       <div className="grid gap-x-14 lg:grid-cols-[minmax(0,1fr)_17rem]">
         <div className="min-w-0">
-          {ctx.levels.map((level) => {
-            const projects = ctx.projects.filter((p) => p.levelId === level.id);
-            const over = level.maxProjects != null && projects.length > level.maxProjects;
+          {groups.map((g) => {
+            const over = g.max != null && g.projects.length > g.max;
             return (
               <Section
-                key={level.id}
-                title={level.name}
-                count={projects.length}
-                aside={<span className={over ? "text-warn" : undefined}>{over ? `max ${level.maxProjects} · ` : ""}{level.weeklyRule}</span>}
+                key={g.key}
+                title={g.title}
+                count={g.projects.length}
+                aside={<span className={over ? "text-warn" : undefined}>{over ? `max ${g.max} · ` : ""}{g.rule}</span>}
               >
-                {projects.length ? (
+                {g.projects.length ? (
                   <ul>
-                    {projects.map((p) => {
+                    {g.projects.map((p) => {
                       const pillar = ctx.pillars.find((x) => x.id === p.pillarId) ?? null;
                       return (
                         <li key={p.id} className="border-b border-rule last:border-b-0">
@@ -59,6 +70,7 @@ async function Cockpit({ searchParams }: PageProps<"/cockpit">) {
                               <div className="flex items-baseline gap-2">
                                 <span className="min-w-0 truncate">{p.name}</span>
                                 <span className="leader" aria-hidden />
+                                {!p.protected && <PriorityBars priority={p.priority} className="self-center" />}
                                 <DueLabel due={p.nextDue} today={today} />
                                 <Meteo value={p.meteo} />
                               </div>
@@ -73,17 +85,11 @@ async function Cockpit({ searchParams }: PageProps<"/cockpit">) {
                     })}
                   </ul>
                 ) : (
-                  <Empty>Aucun projet à ce niveau.</Empty>
+                  <Empty>Aucun projet ici.</Empty>
                 )}
               </Section>
             );
           })}
-
-          {ctx.projects.some((p) => !p.levelId) && (
-            <Section title="Sans niveau">
-              <Empty>{ctx.projects.filter((p) => !p.levelId).map((p) => p.name).join(" · ")}</Empty>
-            </Section>
-          )}
         </div>
 
         <aside className="min-w-0">

@@ -3,11 +3,13 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Source } from "@/db/schema";
 import { addDays, parisDay } from "@/lib/dates";
+import { assertWritableCalendar } from "@/engine/planning";
 import type { Connector, Discovered, PullResult } from "./types";
 
 const TOKENS_KEY = "google_tokens";
-// Read-only for slice 1; writing time blocks will add calendar.events.
-export const GOOGLE_SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"];
+const EVENTS_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+// Reading everything, plus writing the events Cockpit creates as blocks.
+export const GOOGLE_SCOPES = ["https://www.googleapis.com/auth/calendar.readonly", EVENTS_SCOPE];
 
 export function oauthClient() {
   const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } = process.env;
@@ -71,9 +73,53 @@ async function pull(source: Source): Promise<PullResult> {
           allDay,
           // ADE feed: titles starting with "EV" are evaluations.
           isExam: source.config.calendarRole === "cours" && /^EV\b/i.test(title),
+          description: e.description ?? null,
         };
       }),
   };
+}
+
+/** Whether the stored token may write events; otherwise Réglages offers to reconnect. */
+export async function hasWriteScope(): Promise<boolean> {
+  const tokens = await getTokens();
+  return typeof tokens?.scope === "string" && tokens.scope.includes(EVENTS_SCOPE);
+}
+
+export type EventWrite = { title: string; start: string; end: string; description?: string | null };
+
+// All calendar writes live below, and every one goes through the same role check:
+// Cockpit never touches a calendar that is not "travail" or "perso".
+export async function createCalendarEvent(source: Source, w: EventWrite): Promise<{ id: string; url: string | null }> {
+  assertWritableCalendar(source.config.calendarRole);
+  const cal = await calendarApi();
+  const res = await cal.events.insert({
+    calendarId: source.externalRef,
+    requestBody: {
+      summary: w.title,
+      description: w.description ?? undefined,
+      start: { dateTime: w.start },
+      end: { dateTime: w.end },
+      // Until push notifications (S4): a Google Calendar reminder at the block's end.
+      reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+    },
+  });
+  return { id: res.data.id!, url: res.data.htmlLink ?? null };
+}
+
+export async function moveCalendarEvent(source: Source, eventId: string, w: Pick<EventWrite, "start" | "end"> & Partial<EventWrite>): Promise<void> {
+  assertWritableCalendar(source.config.calendarRole);
+  const cal = await calendarApi();
+  await cal.events.patch({
+    calendarId: source.externalRef,
+    eventId,
+    requestBody: { start: { dateTime: w.start }, end: { dateTime: w.end }, ...(w.title ? { summary: w.title } : {}), ...(w.description !== undefined ? { description: w.description ?? "" } : {}) },
+  });
+}
+
+export async function deleteCalendarEvent(source: Source, eventId: string): Promise<void> {
+  assertWritableCalendar(source.config.calendarRole);
+  const cal = await calendarApi();
+  await cal.events.delete({ calendarId: source.externalRef, eventId });
 }
 
 async function discover(): Promise<Discovered[]> {

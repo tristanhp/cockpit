@@ -1,9 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { loadContext, openTasks } from "@/lib/queries";
+import { loadContext, needsTriage, openTasks, taskById } from "@/lib/queries";
+import { PRIORITY_LABEL } from "@/engine/priority";
 import { formatDayLong, parisDay } from "@/lib/dates";
 import { CloseOnEscape } from "./detail-link";
-import { DueLabel, Meteo, PillarDot, SourceTag, TaskList } from "./ui";
+import { DueLabel, PillarDot, PriorityBars, SourceTag, TaskList } from "./ui";
+import { ProjectControls, TaskControls } from "./task-controls";
+import { PlanBlock } from "./plan-block";
 
 type SP = Record<string, string | string[] | undefined>;
 
@@ -16,14 +19,25 @@ export async function DetailPanel({ sp, path }: { sp: SP; path: string }) {
   const rest = new URLSearchParams(Object.entries(sp).flatMap(([k, v]) => (k === "t" || k === "p" || typeof v !== "string" ? [] : [[k, v]])));
   const close = rest.size ? `${path}?${rest}` : path;
   const today = parisDay();
-  const [tasks, ctx] = await Promise.all([openTasks(), loadContext()]);
+  const [tasks, ctx, one] = await Promise.all([openTasks(), loadContext(), t ? taskById(t) : null]);
 
   if (t) {
-    const task = tasks.find((x) => x.id === t);
+    const task = one;
     if (!task) return <Shell close={close} title="Tâche introuvable"><p className="text-sm text-ink-soft">Elle a peut-être été terminée ou supprimée depuis la dernière synchronisation.</p></Shell>;
     const sourceName = { notion: "Notion", linear: "Linear", gcal: "Google Agenda" }[task.source.kind];
     return (
-      <Shell close={close} eyebrow={task.identifier ?? "Tâche"} title={task.title}>
+      <Shell close={close} eyebrow={task.identifier ?? "Tâche"} title={task.title} task={{ id: task.id, done: task.status === "done" }}>
+        <TaskControls
+          key={`${task.id}:${task.status}:${task.priority}:${task.effort}:${task.dueDate}`}
+          taskId={task.id}
+          done={task.status === "done"}
+          priority={task.priority ?? 0}
+          priorityAuto={task.priorityAuto}
+          effort={task.effort}
+          dueDate={task.dueDate}
+          triage={needsTriage(task)}
+        />
+        {task.status !== "done" && <PlanBlock taskId={task.id} />}
         <Facts>
           <Fact label="Échéance">{task.dueDate ? <>{formatDayLong(task.dueDate)} · <DueLabel due={task.dueDate} today={today} /></> : "Aucune"}</Fact>
           <Fact label="Statut">{task.statusRaw ?? task.status}</Fact>
@@ -39,7 +53,6 @@ export async function DetailPanel({ sp, path }: { sp: SP; path: string }) {
           <Fact label="Source">{task.source.name} · <SourceTag source={task.source} /></Fact>
         </Facts>
         {task.url && <SourceButton href={task.url}>Ouvrir dans {sourceName}</SourceButton>}
-        <p className="mt-6 text-xs text-ink-faint">Lecture seule pour l&apos;instant : cocher, reporter ou modifier arrivent avec la synchronisation dans les deux sens.</p>
       </Shell>
     );
   }
@@ -47,16 +60,22 @@ export async function DetailPanel({ sp, path }: { sp: SP; path: string }) {
   const project = ctx.projects.find((x) => x.id === p);
   if (!project) return <Shell close={close} title="Projet introuvable"><p className="text-sm text-ink-soft">Il n&apos;existe plus dans la base Projets.</p></Shell>;
   const pillar = ctx.pillars.find((x) => x.id === project.pillarId) ?? null;
-  const level = ctx.levels.find((x) => x.id === project.levelId);
   const projectTasks = tasks.filter((x) => x.projectId === project.id);
   return (
-    <Shell close={close} eyebrow={level ? `Niveau ${level.name}` : "Projet"} title={project.name}>
+    <Shell close={close} eyebrow={project.protected ? "Habitude protégée" : project.status === "en-attente" ? "Projet en attente" : "Projet"} title={project.name}>
+      <ProjectControls
+        key={`${project.id}:${project.meteo}:${project.nextAction}:${project.nextDue}:${project.priority}:${project.status}`}
+        projectId={project.id}
+        meteo={project.meteo}
+        nextAction={project.nextAction}
+        nextDue={project.nextDue}
+        priority={project.priority}
+        status={project.status}
+        isProtected={project.protected}
+      />
       <Facts>
-        <Fact label="Météo">{project.meteo ? <Meteo value={project.meteo} withLabel /> : "—"}</Fact>
+        <Fact label="Priorité">{project.protected ? "Protégé · hors échelle" : <span className="inline-flex items-center gap-2"><PriorityBars priority={project.priority} />{PRIORITY_LABEL[project.priority ?? 0]}</span>}</Fact>
         <Fact label="Pilier"><span className="inline-flex items-center gap-2"><PillarDot pillar={pillar} />{pillar?.name ?? "Sans pilier"}</span></Fact>
-        <Fact label="Prochaine action">{project.nextAction ?? "—"}</Fact>
-        <Fact label="Échéance">{project.nextDue ? <>{formatDayLong(project.nextDue)} · <DueLabel due={project.nextDue} today={today} /></> : "—"}</Fact>
-        {level?.weeklyRule && <Fact label="Règle">{level.weeklyRule}</Fact>}
         {project.notes && <Fact label="Notes">{project.notes}</Fact>}
       </Facts>
       {project.url && <SourceButton href={project.url}>Ouvrir dans Notion</SourceButton>}
@@ -68,7 +87,7 @@ export async function DetailPanel({ sp, path }: { sp: SP; path: string }) {
   );
 }
 
-function Shell({ close, eyebrow, title, children }: { close: string; eyebrow?: string; title: string; children: ReactNode }) {
+function Shell({ close, eyebrow, title, task, children }: { close: string; eyebrow?: string; title: string; task?: { id: string; done: boolean }; children: ReactNode }) {
   return (
     <div className="fixed inset-0 z-40">
       <CloseOnEscape href={close} />
@@ -76,6 +95,9 @@ function Shell({ close, eyebrow, title, children }: { close: string; eyebrow?: s
       <aside
         role="dialog"
         aria-label={title}
+        data-task-panel={task ? "" : undefined}
+        data-task-id={task?.id}
+        data-done={task?.done ? "1" : "0"}
         className="drawer-in absolute inset-y-0 right-0 flex w-full max-w-md flex-col overflow-y-auto border-l border-rule bg-paper shadow-2xl"
         style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
       >

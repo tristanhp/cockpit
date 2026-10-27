@@ -10,6 +10,8 @@ import { SyncButton } from "@/components/sync-button";
 import { Timeline } from "@/components/timeline";
 import { DetailLink } from "@/components/detail-link";
 import { DetailPanel } from "@/components/detail-panel";
+import { MissedCard, NowStrip } from "@/components/blocks";
+import { DayReplanSheet, ReplanSheet } from "@/components/replan-sheet";
 
 export default function TodayPage(props: PageProps<"/">) {
   return (
@@ -39,7 +41,7 @@ async function Today({ searchParams }: PageProps<"/">) {
   // Linear tickets not assigned to you: only the ones due soon belong on today's page.
   const allTriage = tasks.filter(needsTriage);
   const triage = allTriage.filter((t) => t.dueDate && t.dueDate <= addDays(today, 14));
-  const p1 = ctx.projects.filter((p) => p.levelId === "p1");
+  const p1 = ctx.projects.filter((p) => p.status === "actif" && !p.protected && p.priority === 2);
   const maxP1 = ctx.levels.find((l) => l.id === "p1")?.maxProjects ?? 3;
 
   const horizon = [
@@ -54,8 +56,15 @@ async function Today({ searchParams }: PageProps<"/">) {
         title={formatDayMonth(today)}
         subtitle={<>— {seasons[0]?.name ?? "Hors saison"}, semaine {isoWeek(today)} —</>}
       >
-        <SyncButton lastSyncLabel={formatRelative(synced)} />
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/?replan=1" scroll={false} className="rounded-md border border-rule-strong px-3 py-1.5 text-sm hover:border-accent hover:text-accent">
+            Replanifier ma journée
+          </Link>
+          <SyncButton lastSyncLabel={formatRelative(synced)} />
+        </div>
       </PageHeader>
+
+      <NowStrip />
 
       {!synced && (
         <div className="mb-10 border-l-2 border-margin pl-4 text-sm text-ink-soft">
@@ -66,6 +75,7 @@ async function Today({ searchParams }: PageProps<"/">) {
 
       <div className="grid gap-x-14 lg:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="min-w-0">
+          <MissedCard />
           <Section title="Ce qui presse" count={urgent.length} aside="en retard, aujourd'hui, demain">
             <TaskList tasks={urgent} today={today} empty="Rien d'échu d'ici demain. Respire." />
           </Section>
@@ -92,7 +102,7 @@ async function Today({ searchParams }: PageProps<"/">) {
             {events.length ? <Timeline events={events} day={today} /> : <Empty>Page blanche : aucun événement aujourd&apos;hui.</Empty>}
           </Section>
 
-          <Section title="Les piliers" count={p1.length} aside={p1.length > maxP1 ? <span className="text-warn">P1 · max {maxP1}</span> : "P1"}>
+          <Section title="Les piliers" count={p1.length} aside={p1.length > maxP1 ? <span className="text-warn">Haute · max {maxP1}</span> : "Haute"}>
             {p1.length ? (
               <ul>
                 {p1.map((p) => (
@@ -109,7 +119,7 @@ async function Today({ searchParams }: PageProps<"/">) {
                 ))}
               </ul>
             ) : (
-              <Empty>Aucun projet P1 pour l&apos;instant.</Empty>
+              <Empty>Aucun projet de priorité haute pour l&apos;instant.</Empty>
             )}
           </Section>
 
@@ -136,6 +146,8 @@ async function Today({ searchParams }: PageProps<"/">) {
       </div>
 
       <DetailPanel sp={sp} path="/" />
+      {typeof sp.r === "string" && <ReplanSheet blockId={sp.r} />}
+      {sp.replan === "1" && <DayReplanSheet />}
     </>
   );
 }

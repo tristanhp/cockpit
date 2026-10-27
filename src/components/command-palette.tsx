@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { searchEverything, syncNow, type SearchHit } from "@/app/actions";
 import { fold as norm } from "@/lib/text";
+import { openCapture } from "./capture-dialog";
 
 const OPEN_EVENT = "cockpit:palette";
 export const openPalette = () => window.dispatchEvent(new Event(OPEN_EVENT));
@@ -73,8 +74,13 @@ export function CommandPalette() {
       { id: "nav-tasks", group: "Aller à", label: "Tâches", run: go("/taches") },
       { id: "nav-tasks-due", group: "Aller à", label: "Tâches par échéance", run: go("/taches?par=echeance") },
       { id: "nav-triage", group: "Aller à", label: "Linear à trier", run: go("/taches?trier=1") },
+      { id: "nav-inbox", group: "Aller à", label: "Inbox", hint: "captures à ranger", run: go("/inbox") },
+      { id: "nav-week", group: "Aller à", label: "Semaine", hint: "blocs par jour", run: go("/semaine") },
+      { id: "act-replan", group: "Actions", label: "Replanifier ma journée", hint: "r", run: go("/?replan=1") },
       { id: "nav-cockpit", group: "Aller à", label: "Cockpit", run: go("/cockpit") },
       { id: "nav-settings", group: "Aller à", label: "Réglages", run: go("/reglages") },
+      { id: "act-capture", group: "Actions", label: "Capturer", hint: "c", run: () => setTimeout(openCapture, 0) },
+      { id: "nav-journal", group: "Aller à", label: "Journal des changements", hint: "annuler un changement", run: go("/reglages#journal") },
       { id: "act-sync", group: "Actions", label: "Synchroniser maintenant", hint: "toutes les sources", run: () => syncNow() },
     ];
     const q = norm(query.trim());

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { openCapture } from "./capture-dialog";
 import { openPalette } from "./command-palette";
 
 const LINKS = [
@@ -58,6 +59,11 @@ export function Nav({ demo = false }: { demo?: boolean }) {
       <nav className="sticky top-0 hidden h-screen w-52 shrink-0 flex-col gap-6 px-5 py-8 md:flex">
         <Wordmark demo={demo} />
         <SearchButton />
+        <button onClick={openCapture} className="flex items-center gap-2 rounded-md border border-rule px-2.5 py-1.5 text-sm text-ink-soft hover:border-rule-strong hover:text-ink">
+          <Icon d="M12 5v14M5 12h14" />
+          <span className="flex-1 text-left">Capturer</span>
+          <kbd className="font-mono text-[11px] text-ink-faint">c</kbd>
+        </button>
         <ul className="flex flex-col gap-0.5">
           {LINKS.map((l) => (
             <li key={l.href}>
@@ -86,10 +92,24 @@ export function Nav({ demo = false }: { demo?: boolean }) {
 
       {/* …and a tab bar under the thumb. */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t border-rule bg-paper/95 backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-rule bg-paper/95 backdrop-blur md:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        {LINKS.map((l) => (
+        {LINKS.slice(0, 2).map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${isActive(l.href) ? "text-accent" : "text-ink-faint"}`}
+          >
+            <Icon d={l.icon} />
+            {l.short}
+          </Link>
+        ))}
+        <button onClick={openCapture} aria-label="Capturer" className="flex flex-col items-center gap-0.5 py-2 text-[11px] text-accent">
+          <Icon d="M12 5v14M5 12h14" />
+          Capturer
+        </button>
+        {LINKS.slice(2).map((l) => (
           <Link
             key={l.href}
             href={l.href}
