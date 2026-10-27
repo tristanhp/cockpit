@@ -1,0 +1,28 @@
+name: Cockpit tick
+
+# The free hosting plan limits cron frequency, so GitHub Actions calls the app every 5 minutes:
+# it syncs the sources and sends the notifications that are due. Needs two repository secrets:
+# COCKPIT_URL (https://your-app.vercel.app, no trailing slash) and COCKPIT_CRON_TOKEN.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call /api/cron/tick
+        env:
+          COCKPIT_URL: ${{ secrets.COCKPIT_URL }}
+          COCKPIT_CRON_TOKEN: ${{ secrets.COCKPIT_CRON_TOKEN }}
+        run: |
+          if [ -z "$COCKPIT_URL" ] || [ -z "$COCKPIT_CRON_TOKEN" ]; then
+            echo "::error::Add the COCKPIT_URL and COCKPIT_CRON_TOKEN repository secrets"
+            exit 1
+          fi
+          # --fail-with-body: any non-2xx answer fails the job, so a broken cron is visible.
+          curl --fail-with-body --silent --show-error --max-time 120 -X POST \
+            -H "Authorization: Bearer $COCKPIT_CRON_TOKEN" \
+            "$COCKPIT_URL/api/cron/tick"
