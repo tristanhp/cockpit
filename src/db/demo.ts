@@ -43,6 +43,8 @@ const sources = [
 
 // Course deliverables are graded: due within 48 h they become Urgent.
 const gradedSources = new Set(["notion-cours"]);
+// Task type per source: drives the learned minutes per point.
+const sourceType: Record<string, string> = { "notion-cours": "études", "linear-covoit": "développement" };
 
 const calendarRole: Record<string, "travail" | "socle" | "cours" | "engagement"> = {
   "gcal-principal": "engagement",
@@ -112,7 +114,7 @@ async function main() {
     sources.map(([id, kind, role, name, count]) => ({
       id, kind, role, name,
       externalRef: `demo-${id}`,
-      config: kind === "gcal" ? { calendarRole: calendarRole[id] } : gradedSources.has(id) ? { graded: true } : id === "linear-covoit" ? { teamKey: "COV" } : {},
+      config: kind === "gcal" ? { calendarRole: calendarRole[id] } : { ...(gradedSources.has(id) ? { graded: true } : {}), ...(id === "linear-covoit" ? { teamKey: "COV" } : {}), ...(sourceType[id] ? { taskType: sourceType[id] } : {}) },
       lastSyncAt: now,
       lastSyncCount: count,
     })),
@@ -150,6 +152,7 @@ async function main() {
         priority: computed.priority,
         priorityAuto: computed.auto,
         effort: efforts[i] ?? null,
+        taskType: sourceType[sourceId] ?? null,
         syncedAt: now,
       };
     }),
@@ -182,6 +185,36 @@ async function main() {
     })),
     { id: "gcal-cours:ev", sourceId: "gcal-cours", externalId: "ev", title: "EV Réseaux", start: at(9, "08:00"), end: at(9, "10:00"), allDay: false, day: day(9), isExam: true, syncedAt: now },
   ]);
+
+  // Task types (one learned, one rated once, "rédaction" still to be asked) and blocks around now.
+  await db.insert(schema.taskTypes).values([
+    { id: "etudes", name: "études", minutesPerPoint: 35, samples: 4 },
+    { id: "developpement", name: "développement", minutesPerPoint: 45, samples: 2 },
+  ]);
+  const MIN = 60_000;
+  const rel = (m: number) => new Date(Date.now() + m * MIN).toISOString();
+  const blocks: { id: string; title: string; start: string; end: string; task: string | null; status: "planned" | "missed" | "done"; origin: "cockpit" | "calendar"; type: string | null; effort: number | null; description?: string }[] = [
+    { id: "b0", title: "Rendre le TP Kubernetes", start: at(-1, "14:00"), end: at(-1, "15:30"), task: "notion-cours:t0", status: "missed", origin: "cockpit", type: "études", effort: 3, description: "cockpit:task=notion-cours:t0" },
+    { id: "b1", title: "Fix : ancien ticket", start: at(-1, "10:00"), end: at(-1, "11:30"), task: "linear-covoit:closed", status: "done", origin: "cockpit", type: "développement", effort: 3 },
+    { id: "b2", title: "Préparer les slides de mi-parcours", start: rel(-20), end: rel(40), task: "notion-cours:t2", status: "planned", origin: "cockpit", type: "rédaction", effort: 2, description: "cockpit:task=notion-cours:t2" },
+    { id: "b3", title: "COV-14 Fix position GPS figée", start: rel(90), end: rel(180), task: "linear-covoit:t3", status: "planned", origin: "calendar", type: "développement", effort: 3 },
+    { id: "b4", title: "Plan d'entraînement semaine 6", start: at(1, "09:30"), end: at(1, "11:00"), task: "notion-taches:t5", status: "planned", origin: "cockpit", type: null, effort: 5, description: "cockpit:task=notion-taches:t5" },
+    { id: "b5", title: "Atelier admin", start: at(1, "16:00"), end: at(1, "17:00"), task: null, status: "planned", origin: "calendar", type: null, effort: null },
+  ];
+  await db.insert(schema.events).values(
+    blocks.map((b) => ({ id: `gcal-travail:${b.id}`, sourceId: "gcal-travail", externalId: b.id, title: b.title, start: b.start, end: b.end, allDay: false, day: parisDay(b.start), description: b.description ?? null, syncedAt: now })),
+  );
+  await db.insert(schema.blocks).values(
+    blocks.map((b) => ({
+      id: `gcal-travail:${b.id}`, sourceId: "gcal-travail", externalId: b.id, title: b.title, start: b.start, end: b.end, taskId: b.task, status: b.status, origin: b.origin,
+      estimateMin: Math.round((Date.parse(b.end) - Date.parse(b.start)) / MIN), effort: b.effort, taskType: b.type, updatedAt: now,
+    })),
+  );
+  // A day with a clash: an association evening (avoided) and a class (protected) tomorrow.
+  await db.insert(schema.events).values([
+    { id: "gcal-principal:soiree", sourceId: "gcal-principal", externalId: "soiree", title: "Soirée de l'asso", start: at(1, "18:00"), end: at(1, "21:00"), allDay: false, day: day(1), syncedAt: now },
+  ]);
+  await db.insert(schema.blockLog).values({ at: now, blockId: "gcal-travail:b0", action: "status", before: { status: "planned" }, after: { status: "missed" }, reason: "Bloc terminé" });
 
   await db.insert(schema.discoveries).values([
     { id: "notion:demo-lectures", kind: "notion", externalRef: "demo-lectures", name: "Lectures", foundAt: now },

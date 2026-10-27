@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { setTaskField } from "@/app/actions";
 import { EFFORTS, PRIORITY_LABEL } from "@/engine/priority";
@@ -19,6 +20,7 @@ function focusedTask(): { id: string; row: HTMLElement | null; done: boolean } |
  * Everything optimistic: the row dims, then the server refreshes; a failure restores it.
  */
 export function KeyboardLayer() {
+  const router = useRouter();
   useEffect(() => {
     let chord: "p" | "e" | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -54,7 +56,10 @@ export function KeyboardLayer() {
         return;
       }
 
-      if (key === "c") {
+      if (key === "r") {
+        e.preventDefault();
+        router.push("/?replan=1");
+      } else if (key === "c") {
         e.preventDefault();
         openCapture();
       } else if (key === "x") {
@@ -69,6 +74,6 @@ export function KeyboardLayer() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [router]);
   return null;
 }

@@ -7,7 +7,7 @@ The next slice to build is the first `todo`. Sessions update this file in their 
 |---|---|---|---|---|
 | S1 | Read-only sync, four screens, design pass, palette, detail panels, demo mode | done | main | |
 | S2 | Write-back, capture and the priority scale | in review | `slice/s2-write-back` | Priority and effort, write-back to Notion and Linear with a change journal and undo, capture (`c`, `/api/capture`) and Inbox, Linear triage, dark default. 2026-10-27. [brief](slices/S2.md) |
-| S3 | Blocks and the replan | todo | | [brief](slices/S3.md) |
+| S3 | Blocks and the replan | in review | `slice/s3-blocks-replan` | Blocks from calendar events, free slots / placement / day replan engine (56 tests), Maintenant strip, À replacer + replan sheet, Replanifier ma journée, calendar writes on travail/perso only, `/semaine`. Stacked on S2. 2026-10-27. [brief](slices/S3.md) |
 | S4 | On the phone: auth, PWA, notifications | todo | | [brief](slices/S4.md) |
 | S5 | Le cap and la clôture | todo | | [brief](slices/S5.md) |
 | S6 | Vision, goals and threads | todo | | [brief](slices/S6.md) |

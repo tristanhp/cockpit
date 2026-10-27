@@ -18,6 +18,7 @@ export type PulledTask = {
   /** True when the Notion base has a priority property, even if this row's cell is empty. */
   hasPriorityProp?: boolean;
   effort?: number | null;
+  taskType?: string | null;
   remoteUpdatedAt?: string | null;
 };
 
@@ -53,6 +54,7 @@ export type PulledEvent = {
   end: string;
   allDay: boolean;
   isExam?: boolean;
+  description?: string | null;
 };
 
 export type PullResult = {

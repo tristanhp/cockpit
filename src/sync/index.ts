@@ -168,6 +168,7 @@ async function store(source: Source, r: PullResult, now: string): Promise<number
       priority: computed.priority,
       priorityAuto: computed.auto,
       effort,
+      taskType: t.taskType ?? null,
       remoteUpdatedAt: t.remoteUpdatedAt,
       syncedAt: now,
     };
@@ -196,6 +197,7 @@ async function store(source: Source, r: PullResult, now: string): Promise<number
       allDay: e.allDay,
       day: parisDay(e.start),
       isExam: e.isExam ?? false,
+      description: e.description ?? null,
       syncedAt: now,
     })));
     return r.events.length;

@@ -6,6 +6,7 @@ import { db, schema } from "@/db";
 import type { Source } from "@/db/schema";
 import { resolveDataSourceId } from "@/connectors/notion";
 import { discoverAll, syncAll } from "@/sync";
+import { applyDayReplan, applyReplanOption, reconcileBlocks, scheduleTask, setTypeRate, type Option } from "@/planning";
 import { captureText, fileAllInbox, fileInboxItem, type CaptureOutcome } from "@/capture";
 import { changeProject, changeTask, undoChange, type ProjectField, type TaskField } from "@/writeback";
 import { openTasks } from "@/lib/queries";
@@ -16,6 +17,7 @@ import { fold } from "@/lib/text";
 
 export async function syncNow() {
   const report = await syncAll();
+  await reconcileBlocks();
   refresh();
   return report;
 }
@@ -185,4 +187,24 @@ export async function addRoutingRule(formData: FormData) {
 export async function deleteRoutingRule(id: string) {
   await db.delete(schema.routingRules).where(eq(schema.routingRules.id, id));
   refresh();
+}
+
+
+// ---- Blocks and the replan --------------------------------------------------
+
+export async function replanBlock(blockId: string, key: Option["key"]) {
+  return run(() => applyReplanOption(blockId, key));
+}
+
+export async function replanMyDay() {
+  return run(() => applyDayReplan());
+}
+
+/** Plans a block for a task: `start` is a Paris local "YYYY-MM-DDTHH:mm", or omitted to let Cockpit choose. */
+export async function planBlock(taskId: string, start?: string) {
+  return run(() => scheduleTask(taskId, start));
+}
+
+export async function answerTypeRate(name: string, minutes: number) {
+  return run(() => setTypeRate(name, minutes));
 }

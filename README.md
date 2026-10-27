@@ -115,7 +115,8 @@ The text is parsed like the in-app capture (`c`): French dates and hours, `#tags
 config/          seed.example.json (template) · seed.local.json (yours, git-ignored)
 src/db/          Drizzle schema, libSQL client, idempotent JSON seed, fictional demo dataset
 src/connectors/  notion.ts · linear.ts · gcal.ts, one file per tool (pull, and write-back for Notion and Linear)
-src/engine/      pure rules with unit tests: priority, capture parsing and routing, conflicts
+src/engine/      pure rules with unit tests: priority, capture parsing and routing, conflicts, planning (slots, placement, replan)
+src/planning/    blocks: calendar events → blocks, replan options, day replan, learning
 src/writeback/   the one place every source write goes through (checks demo mode, logs, undo)
 src/capture/     capture → task in a source, or the Inbox
 src/sync/        sync engine (projects → milestones → tasks → events) and discovery

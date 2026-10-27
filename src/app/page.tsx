@@ -10,6 +10,8 @@ import { SyncButton } from "@/components/sync-button";
 import { Timeline } from "@/components/timeline";
 import { DetailLink } from "@/components/detail-link";
 import { DetailPanel } from "@/components/detail-panel";
+import { MissedCard, NowStrip } from "@/components/blocks";
+import { DayReplanSheet, ReplanSheet } from "@/components/replan-sheet";
 
 export default function TodayPage(props: PageProps<"/">) {
   return (
@@ -54,8 +56,15 @@ async function Today({ searchParams }: PageProps<"/">) {
         title={formatDayMonth(today)}
         subtitle={<>— {seasons[0]?.name ?? "Hors saison"}, semaine {isoWeek(today)} —</>}
       >
-        <SyncButton lastSyncLabel={formatRelative(synced)} />
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/?replan=1" scroll={false} className="rounded-md border border-rule-strong px-3 py-1.5 text-sm hover:border-accent hover:text-accent">
+            Replanifier ma journée
+          </Link>
+          <SyncButton lastSyncLabel={formatRelative(synced)} />
+        </div>
       </PageHeader>
+
+      <NowStrip />
 
       {!synced && (
         <div className="mb-10 border-l-2 border-margin pl-4 text-sm text-ink-soft">
@@ -66,6 +75,7 @@ async function Today({ searchParams }: PageProps<"/">) {
 
       <div className="grid gap-x-14 lg:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="min-w-0">
+          <MissedCard />
           <Section title="Ce qui presse" count={urgent.length} aside="en retard, aujourd'hui, demain">
             <TaskList tasks={urgent} today={today} empty="Rien d'échu d'ici demain. Respire." />
           </Section>
@@ -136,6 +146,8 @@ async function Today({ searchParams }: PageProps<"/">) {
       </div>
 
       <DetailPanel sp={sp} path="/" />
+      {typeof sp.r === "string" && <ReplanSheet blockId={sp.r} />}
+      {sp.replan === "1" && <DayReplanSheet />}
     </>
   );
 }
