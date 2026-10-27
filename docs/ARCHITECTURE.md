@@ -62,6 +62,14 @@ Every "day" is computed in **Europe/Paris** (`src/lib/dates.ts`) regardless of t
 
 Next.js 16 with Cache Components: each page is a static shell with a `<Suspense>` boundary, and the data components call `connection()` to render at request time. Mutations are Server Actions that call `refresh()`.
 
-## Security posture (current)
+## Security posture
 
-Single user, local only: the server binds to `127.0.0.1` and has no authentication yet. Secrets live in `.env.local`, and personal configuration in `config/seed.local.json`. Both are git-ignored. Authentication comes with hosting (slice 11).
+Single user, passkey only (WebAuthn, `src/lib/auth`). The first passkey needs the one-time `COCKPIT_SETUP_TOKEN` and no existing credential; later ones need a session. A session is a random token, stored hashed in `sessions`, carried in a signed, HTTP-only, `SameSite=Lax`, `Secure` cookie (30 days, sliding).
+
+Defence in depth: `src/proxy.ts` is an optimistic gate in front of every page and route (signed cookie present and not expired); each server action and route handler calls `requireAuth()` again against the database, because Server Functions can be POSTed directly. Machine endpoints (`/api/sync`, `/api/cron/tick`, `/api/capture`) are open to the proxy and check their own bearer token (`COCKPIT_CRON_TOKEN`, `COCKPIT_CAPTURE_TOKEN`). `COCKPIT_DEMO=1` and `COCKPIT_AUTH=off` (local development only) disable authentication.
+
+Secrets live in environment variables (`.env.local` locally, Vercel in production); personal configuration in `config/seed.local.json`, git-ignored.
+
+## Phone, PWA and notifications (S4)
+
+`app/manifest.ts` and `public/sw.js` make the app installable: the service worker caches the build output and the last Aujourd'hui for read-only offline use (with a "hors ligne" banner) and never caches `/api/` responses. Push uses `web-push` with VAPID keys; subscriptions are stored in `push_subscriptions`. `/api/cron/tick` (called every 5 minutes by `.github/workflows/cron.yml`) syncs, asks the pure `dueNotifications` (`src/engine/notifications.ts`) what is due, sends it and records each key in `notifications_sent`, so a notification goes out once. Production schema changes ship as versioned migrations in `drizzle/` (`npm run db:migrate`); `db:push` is for local development. See [DEPLOY.md](DEPLOY.md).

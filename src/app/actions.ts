@@ -11,11 +11,14 @@ import { captureText, fileAllInbox, fileInboxItem, type CaptureOutcome } from "@
 import { changeProject, changeTask, undoChange, type ProjectField, type TaskField } from "@/writeback";
 import { openTasks } from "@/lib/queries";
 import { fold } from "@/lib/text";
+import { requireAuth } from "@/lib/auth/guard";
+import { sendToAll } from "@/push";
 
 // Local, single-user app for now: the dev server listens on 127.0.0.1 only.
 // Authentication comes with hosting (slice 11).
 
 export async function syncNow() {
+  await requireAuth();
   const report = await syncAll();
   await reconcileBlocks();
   refresh();
@@ -23,12 +26,14 @@ export async function syncNow() {
 }
 
 export async function discoverNow() {
+  await requireAuth();
   const added = await discoverAll();
   refresh();
   return added;
 }
 
 export async function toggleSource(id: string, enabled: boolean) {
+  await requireAuth();
   await db.update(schema.sources).set({ enabled }).where(eq(schema.sources.id, id));
   refresh();
 }
@@ -37,6 +42,7 @@ const ROLES = ["tasks", "projects", "milestones", "events"] as const;
 
 /** Paste a Notion URL (database, data source or page) and it becomes a source. */
 export async function addNotionSource(formData: FormData) {
+  await requireAuth();
   const url = String(formData.get("url") ?? "").trim();
   const role = String(formData.get("role") ?? "tasks") as Source["role"];
   const projectName = String(formData.get("projectName") ?? "").trim() || undefined;
@@ -60,6 +66,7 @@ export async function addNotionSource(formData: FormData) {
 }
 
 export async function adoptDiscovery(formData: FormData) {
+  await requireAuth();
   const id = String(formData.get("id"));
   const role = String(formData.get("role") ?? "tasks") as Source["role"];
   const d = await db.query.discoveries.findFirst({ where: eq(schema.discoveries.id, id) });
@@ -80,6 +87,7 @@ export async function adoptDiscovery(formData: FormData) {
 }
 
 export async function dismissDiscovery(id: string) {
+  await requireAuth();
   await db.update(schema.discoveries).set({ dismissed: true }).where(eq(schema.discoveries.id, id));
   refresh();
 }
@@ -89,6 +97,7 @@ export type SearchHit = { id: string; kind: "task" | "project"; label: string; h
 
 /** Accent-insensitive search over open tasks and projects, for the command palette. */
 export async function searchEverything(query: string): Promise<SearchHit[]> {
+  await requireAuth();
   const q = fold(query.trim());
   if (q.length < 2) return [];
   const [tasks, projects] = await Promise.all([openTasks(), db.select().from(schema.projects)]);
@@ -121,19 +130,23 @@ async function run(fn: () => Promise<unknown>): Promise<ActionResult> {
 }
 
 export async function setTaskField(taskId: string, field: TaskField, value: string | number | boolean | null) {
+  await requireAuth();
   return run(() => changeTask(taskId, field, value));
 }
 
 export async function setProjectField(projectId: string, field: ProjectField, value: string | number | null) {
+  await requireAuth();
   return run(() => changeProject(projectId, field, value));
 }
 
 export async function undoChangeAction(id: number) {
+  await requireAuth();
   return run(() => undoChange(id));
 }
 
 /** Linear triage: "Pas pour moi" hides the ticket for good, "Me concerne" keeps it in Mes tâches. */
 export async function triageTask(taskId: string, choice: "hidden" | "mine" | "reset") {
+  await requireAuth();
   return run(() =>
     db
       .insert(schema.taskOverrides)
@@ -148,6 +161,7 @@ export async function triageTask(taskId: string, choice: "hidden" | "mine" | "re
 // ---- Capture and Inbox ------------------------------------------------------
 
 export async function capture(text: string): Promise<(CaptureOutcome & { ok: true }) | { ok: false; error: string }> {
+  await requireAuth();
   try {
     const outcome = await captureText(text);
     refresh();
@@ -158,10 +172,12 @@ export async function capture(text: string): Promise<(CaptureOutcome & { ok: tru
 }
 
 export async function fileInbox(id: string, sourceId?: string, projectId?: string | null) {
+  await requireAuth();
   return run(() => fileInboxItem(id, sourceId, projectId));
 }
 
 export async function fileEverything(): Promise<ActionResult & { filed?: number; failed?: string[] }> {
+  await requireAuth();
   try {
     const { filed, failed } = await fileAllInbox();
     refresh();
@@ -172,10 +188,12 @@ export async function fileEverything(): Promise<ActionResult & { filed?: number;
 }
 
 export async function dismissInbox(id: string) {
+  await requireAuth();
   return run(() => db.update(schema.inbox).set({ status: "dismissed" }).where(eq(schema.inbox.id, id)));
 }
 
 export async function addRoutingRule(formData: FormData) {
+  await requireAuth();
   const pattern = String(formData.get("pattern") ?? "").trim();
   const sourceId = String(formData.get("sourceId") ?? "");
   const projectId = String(formData.get("projectId") ?? "") || null;
@@ -185,6 +203,7 @@ export async function addRoutingRule(formData: FormData) {
 }
 
 export async function deleteRoutingRule(id: string) {
+  await requireAuth();
   await db.delete(schema.routingRules).where(eq(schema.routingRules.id, id));
   refresh();
 }
@@ -193,18 +212,48 @@ export async function deleteRoutingRule(id: string) {
 // ---- Blocks and the replan --------------------------------------------------
 
 export async function replanBlock(blockId: string, key: Option["key"]) {
+  await requireAuth();
   return run(() => applyReplanOption(blockId, key));
 }
 
 export async function replanMyDay() {
+  await requireAuth();
   return run(() => applyDayReplan());
 }
 
 /** Plans a block for a task: `start` is a Paris local "YYYY-MM-DDTHH:mm", or omitted to let Cockpit choose. */
 export async function planBlock(taskId: string, start?: string) {
+  await requireAuth();
   return run(() => scheduleTask(taskId, start));
 }
 
 export async function answerTypeRate(name: string, minutes: number) {
+  await requireAuth();
   return run(() => setTypeRate(name, minutes));
+}
+
+// ---- Notifications ----------------------------------------------------------
+
+export async function subscribePush(sub: { endpoint: string; keys: { p256dh: string; auth: string } }, label: string) {
+  await requireAuth();
+  return run(() =>
+    db
+      .insert(schema.pushSubscriptions)
+      .values({ id: crypto.randomUUID(), endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth, label: label.slice(0, 60) || null, createdAt: new Date().toISOString() })
+      .onConflictDoUpdate({ target: schema.pushSubscriptions.endpoint, set: { p256dh: sub.keys.p256dh, auth: sub.keys.auth, label: label.slice(0, 60) || null } }),
+  );
+}
+
+export async function removePushDevice(id: string) {
+  await requireAuth();
+  return run(() => db.delete(schema.pushSubscriptions).where(eq(schema.pushSubscriptions.id, id)));
+}
+
+export async function sendTestPush() {
+  await requireAuth();
+  return run(async () => {
+    const r = await sendToAll({ title: "Cockpit", body: "Les notifications fonctionnent.", url: "/reglages" });
+    if (!r.devices) throw new Error("Aucun appareil enregistré");
+    if (!r.sent) throw new Error("L'envoi a échoué sur tous les appareils");
+  });
 }

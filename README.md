@@ -78,7 +78,7 @@ Then connect Google in **Réglages** and click **Synchroniser** on **Aujourd'hui
 
 Write-back needs write access: give the Notion integration **update** and **insert** content capabilities, and use a Linear key that can edit issues.
 
-The dev server only listens on `127.0.0.1`: there is no authentication yet.
+The dev server only listens on `127.0.0.1`. Login by passkey is on by default outside demo mode: for local development with real data set `COCKPIT_AUTH=off` in `.env.local` (never in production). Deploying online: [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ### Capture from a phone shortcut
 
