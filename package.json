@@ -9,21 +9,27 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx --env-file-if-exists=.env.local src/db/migrate.ts",
     "db:seed": "tsx --env-file-if-exists=.env.local src/db/seed.ts",
     "setup": "mkdir -p data && npm run db:push && npm run db:seed",
     "demo:setup": "mkdir -p data && rm -f data/demo.db && DATABASE_URL=file:data/demo.db drizzle-kit push --force && DATABASE_URL=file:data/demo.db tsx src/db/demo.ts",
     "demo": "npm run demo:setup && COCKPIT_DEMO=1 DATABASE_URL=file:data/demo.db next dev -H 127.0.0.1",
     "test": "tsx --test \"src/**/*.test.ts\"",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build"
+    "check": "npm run lint && npm run typecheck && npm test && npm run build",
+    "check:pwa": "node scripts/check-pwa.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",
     "@notionhq/client": "^5.28.0",
+    "@simplewebauthn/browser": "^14.0.0",
+    "@simplewebauthn/server": "^14.0.3",
     "drizzle-orm": "^0.45.4",
     "googleapis": "^188.0.0",
     "next": "16.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "web-push": "^3.6.7",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -31,6 +37,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",

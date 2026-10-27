@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { openCapture } from "./capture-dialog";
 import { openPalette } from "./command-palette";
 
@@ -10,6 +11,14 @@ const LINKS = [
   { href: "/taches", label: "Tâches", short: "Tâches", icon: "M5 7l2 2 4-4M5 15l2 2 4-4M14 8h6M14 16h6" },
   { href: "/cockpit", label: "Cockpit", short: "Cockpit", icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm3.5 5.5-2 5-5 2 2-5z" },
   { href: "/reglages", label: "Réglages", short: "Réglages", icon: "M4 7h10M18 7h2M4 17h4M12 17h8M14 5v4M8 15v4" },
+];
+
+// Behind "Plus" on the phone. Objectifs joins this tab bar when its route exists (S6).
+const MORE = [
+  { href: "/cockpit", label: "Cockpit", icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm3.5 5.5-2 5-5 2 2-5z" },
+  { href: "/semaine", label: "Semaine", icon: "M4 6h16M4 12h16M4 18h16M9 4v4M15 10v4M8 16v4" },
+  { href: "/inbox", label: "Inbox", icon: "M4 13l2-7h12l2 7M4 13v5h16v-5M4 13h4l1 2h6l1-2h4" },
+  { href: "/reglages", label: "Réglages", icon: "M4 7h10M18 7h2M4 17h4M12 17h8M14 5v4M8 15v4" },
 ];
 
 function Icon({ d }: { d: string }) {
@@ -51,6 +60,7 @@ function SearchButton({ className = "" }: { className?: string }) {
 
 export function Nav({ demo = false }: { demo?: boolean }) {
   const pathname = usePathname();
+  const [more, setMore] = useState(false);
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   return (
@@ -90,9 +100,9 @@ export function Nav({ demo = false }: { demo?: boolean }) {
         <SearchButton className="max-w-40 flex-1" />
       </header>
 
-      {/* …and a tab bar under the thumb. */}
+      {/* …and a tab bar under the thumb: Jour, Tâches, +, Plus. */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-rule bg-paper/95 backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t border-rule bg-paper/95 backdrop-blur md:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         {LINKS.slice(0, 2).map((l) => (
@@ -109,17 +119,34 @@ export function Nav({ demo = false }: { demo?: boolean }) {
           <Icon d="M12 5v14M5 12h14" />
           Capturer
         </button>
-        {LINKS.slice(2).map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${isActive(l.href) ? "text-accent" : "text-ink-faint"}`}
-          >
-            <Icon d={l.icon} />
-            {l.short}
-          </Link>
-        ))}
+        <button
+          onClick={() => setMore((m) => !m)}
+          aria-expanded={more}
+          className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${MORE.some((l) => isActive(l.href)) || more ? "text-accent" : "text-ink-faint"}`}
+        >
+          <Icon d="M5 12h.01M12 12h.01M19 12h.01" />
+          Plus
+        </button>
       </nav>
+
+      {more && (
+        <div className="fixed inset-0 z-30 md:hidden" onClick={() => setMore(false)}>
+          <div className="fade-in absolute inset-0 bg-scrim backdrop-blur-md" />
+          <ul
+            className="drawer-in absolute inset-x-3 rounded-lg border border-rule-strong bg-paper p-2 shadow-2xl"
+            style={{ bottom: "calc(env(safe-area-inset-bottom) + 64px)" }}
+          >
+            {MORE.map((l) => (
+              <li key={l.href}>
+                <Link href={l.href} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm ${isActive(l.href) ? "text-accent" : "text-ink"}`}>
+                  <Icon d={l.icon} />
+                  {l.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </>
   );
 }

@@ -9,6 +9,9 @@ import { hasWriteScope } from "@/connectors/gcal";
 import { connectors, isDemo } from "@/sync";
 import { addNotionSource, addRoutingRule, adoptDiscovery, deleteRoutingRule, discoverNow, dismissDiscovery, toggleSource } from "@/app/actions";
 import { UndoButton } from "@/components/undo-button";
+import { NotificationsPanel } from "@/components/notifications-panel";
+import { SecurityPanel } from "@/components/security-panel";
+import { authDisabled } from "@/lib/auth/session";
 import { Empty, PageHeader, Section } from "@/components/ui";
 
 const KIND_TITLE: Record<Source["kind"], string> = { notion: "Notion", linear: "Linear", gcal: "Google Agenda" };
@@ -27,6 +30,7 @@ const ghostButton = "rounded-md border border-rule-strong px-2.5 py-1 text-xs ho
 
 async function Settings() {
   await connection();
+  const [passkeys, devices] = await Promise.all([db.select().from(schema.credentials), db.select().from(schema.pushSubscriptions)]);
   const [sources, discoveries, projects, journal, rules] = await Promise.all([
     db.select().from(schema.sources),
     db.select().from(schema.discoveries).where(eq(schema.discoveries.dismissed, false)),
@@ -160,6 +164,28 @@ async function Settings() {
         </div>
 
         <aside className="min-w-0">
+          <Section title="Sécurité" count={authDisabled() ? undefined : passkeys.length}>
+            {authDisabled() ? (
+              <p className="py-2 text-xs text-ink-faint">Authentification désactivée (mode démo ou COCKPIT_AUTH=off).</p>
+            ) : (
+              <>
+                <ul>
+                  {passkeys.map((c) => (
+                    <li key={c.id} className="flex items-baseline gap-3 border-b border-rule py-2 text-sm last:border-b-0">
+                      <span className="min-w-0 flex-1 truncate">{c.label ?? "Passkey"}</span>
+                      <span className="font-mono text-xs text-ink-faint">{c.createdAt.slice(0, 10)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <SecurityPanel />
+              </>
+            )}
+          </Section>
+
+          <Section title="Notifications" count={devices.length}>
+            <NotificationsPanel publicKey={process.env.VAPID_PUBLIC_KEY ?? null} devices={devices.map((d) => ({ id: d.id, label: d.label, createdAt: d.createdAt }))} />
+          </Section>
+
           <Section title="Connexions">
             <ul>
               {(Object.keys(KIND_TITLE) as Source["kind"][]).map((kind) => (

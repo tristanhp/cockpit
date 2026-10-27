@@ -278,6 +278,38 @@ export const blockLog = sqliteTable("block_log", {
   reason: text("reason"),
 });
 
+// Single-user passkeys (WebAuthn). The public key is base64url; only a hash of a session token is stored.
+export const credentials = sqliteTable("credentials", {
+  id: text("id").primaryKey(),
+  publicKey: text("public_key").notNull(),
+  counter: integer("counter").notNull().default(0),
+  transports: text("transports", { mode: "json" }).$type<string[]>(),
+  label: text("label"),
+  createdAt: text("created_at").notNull(),
+});
+
+export const sessions = sqliteTable("sessions", {
+  hash: text("hash").primaryKey(),
+  expiresAt: integer("expires_at").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
+export const pushSubscriptions = sqliteTable("push_subscriptions", {
+  id: text("id").primaryKey(),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  label: text("label"),
+  createdAt: text("created_at").notNull(),
+});
+
+// One row per notification actually sent: the key (kind + subject + day) makes a tick idempotent.
+export const notificationsSent = sqliteTable("notifications_sent", {
+  key: text("key").primaryKey(),
+  kind: text("kind").notNull(),
+  sentAt: text("sent_at").notNull(),
+});
+
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value", { mode: "json" }).$type<unknown>(),
@@ -291,6 +323,8 @@ export type TaskOverride = typeof taskOverrides.$inferSelect;
 export type ChangeLogEntry = typeof changeLog.$inferSelect;
 export type InboxItem = typeof inbox.$inferSelect;
 export type RoutingRule = typeof routingRules.$inferSelect;
+export type Credential = typeof credentials.$inferSelect;
+export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
 export type Block = typeof blocks.$inferSelect;
 export type TaskTypeRow = typeof taskTypes.$inferSelect;
 export type Milestone = typeof milestones.$inferSelect;

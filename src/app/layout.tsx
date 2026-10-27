@@ -6,6 +6,7 @@ import { AutoSync } from "@/components/auto-sync";
 import { CaptureDialog } from "@/components/capture-dialog";
 import { Toaster } from "@/components/feedback";
 import { KeyboardLayer } from "@/components/keyboard-layer";
+import { OfflineBanner, PwaRegister } from "@/components/pwa";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -15,9 +16,12 @@ const newsreader = Newsreader({ variable: "--font-newsreader", subsets: ["latin"
 export const metadata: Metadata = {
   title: "Cockpit",
   description: "Le tableau de bord de ta vie : vision, projets, tâches, agenda et revues au même endroit.",
+  manifest: "/manifest.webmanifest",
+  icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "Cockpit", statusBarStyle: "black-translucent" },
 };
 
-export const viewport: Viewport = { viewportFit: "cover" };
+export const viewport: Viewport = { viewportFit: "cover", themeColor: "#11151c" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -36,6 +40,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <KeyboardLayer />
         <AutoSync />
         <Toaster />
+        <OfflineBanner />
+        <PwaRegister />
       </body>
     </html>
   );
