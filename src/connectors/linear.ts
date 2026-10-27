@@ -73,6 +73,7 @@ async function pull(source: Source): Promise<PullResult> {
       assigneeName: i.assignee?.name ?? null,
       priority: i.priority,
       effort: i.estimate,
+      taskType: source.config.taskType ?? null,
       remoteUpdatedAt: i.updatedAt,
     })),
   };

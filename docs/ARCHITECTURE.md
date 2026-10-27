@@ -46,6 +46,14 @@ The priority of a task is computed at sync time by the pure `computePriority` (`
 
 Capture is parsed by `src/engine/capture.ts` (French dates, hours, `#tags`, kind prefixes) and routed by `suggestDestination` (rules, ticket pattern, project tag). What is not obvious waits in the `inbox` table.
 
+## Blocks and the replan (S3)
+
+Every event on a `travail` or `perso` calendar is a **block** (`blocks` table, same id as its event). `reconcileBlocks` (`src/planning`) runs after each sync: it mirrors the events into blocks (a block moved by hand in Google Calendar keeps the new time and is never moved back), links them to tasks (`cockpit:task=<id>` marker in the description, else a ticket identifier in the title), then sets each block's status with the pure `reconcileBlockStatus` (task closed in its source → `done`; end + grace passed with the task open → `missed`, which feeds **À replacer**). A block that ends `done` teaches the task type's minutes per point (moving average).
+
+`src/engine/planning.ts` holds the rules, all pure and unit-tested: `freeSlots` (work window Mon–Sat 09:00–22:00; protected `socle`/`cours` and busy events removed; `engagement` overlaps are kept as slots tagged `avoidedIds`, usable only with approval), `placeTask`, `placeSplit`, `replanDay` (mandatory first, then habits, then the rest; blocks stay put when they can; overload is reported as `unplaceable`/`dropped`, never silent), `durationFor` and `learnMinutesPerPoint`.
+
+Calendar writes live in `src/writeback/blocks.ts` and `src/connectors/gcal.ts`. Each goes through `assertWritableCalendar` (only `travail` and `perso`) and checks `isDemo()` first; in demo mode only the local `events` and `blocks` tables change. Every state change and replan decision is appended to `block_log`.
+
 ## Dates
 
 Every "day" is computed in **Europe/Paris** (`src/lib/dates.ts`) regardless of the server's timezone, using `Intl` only.

@@ -5,6 +5,7 @@ import { db, schema } from "@/db";
 import type { Source } from "@/db/schema";
 import { formatDayCompact, formatRelative } from "@/lib/dates";
 import { PRIORITY_LABEL } from "@/engine/priority";
+import { hasWriteScope } from "@/connectors/gcal";
 import { connectors, isDemo } from "@/sync";
 import { addNotionSource, addRoutingRule, adoptDiscovery, deleteRoutingRule, discoverNow, dismissDiscovery, toggleSource } from "@/app/actions";
 import { UndoButton } from "@/components/undo-button";
@@ -46,6 +47,7 @@ async function Settings() {
   const setup = Object.fromEntries(
     await Promise.all(Object.values(connectors).map(async (c) => [c.kind, demo ? null : await c.missingSetup()] as const)),
   ) as Record<Source["kind"], string | null>;
+  const needsWrite = !demo && !setup.gcal && !(await hasWriteScope());
 
   return (
     <>
@@ -166,6 +168,9 @@ async function Settings() {
                   <span className="flex-1">{KIND_TITLE[kind]}</span>
                   {kind === "gcal" && !demo && process.env.GOOGLE_CLIENT_ID && (
                     <a href="/api/google/auth" className={ghostButton}>{setup.gcal ? "Connecter" : "Reconnecter"}</a>
+                  )}
+                  {kind === "gcal" && needsWrite && (
+                    <a href="/api/google/auth" className={`${ghostButton} border-warn text-warn`}>Reconnecter pour autoriser l&apos;écriture</a>
                   )}
                   <span className="w-full pl-5 text-xs text-ink-faint">{demo ? "Mode démo : données fictives" : (setup[kind] ?? "Connecté")}</span>
                 </li>

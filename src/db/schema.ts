@@ -79,6 +79,9 @@ export type SourceConfig = {
   graded?: boolean;
   // Linear: the team's workflow states, read once and cached here.
   workflowStates?: { id: string; name: string; type: string; position: number }[];
+  // Task type for every item of this source, and the Notion property that holds it per row.
+  taskType?: string;
+  taskTypeProp?: string;
 };
 
 export const projects = sqliteTable("projects", {
@@ -125,6 +128,8 @@ export const tasks = sqliteTable(
     priorityAuto: integer("priority_auto", { mode: "boolean" }).notNull().default(false),
     // Fibonacci points: 1, 2, 3, 5, 8.
     effort: integer("effort"),
+    // Drives the learned minutes per point; null means the "default" type.
+    taskType: text("task_type"),
     remoteUpdatedAt: text("remote_updated_at"),
     syncedAt: text("synced_at").notNull(),
   },
@@ -158,6 +163,7 @@ export const events = sqliteTable(
     allDay: integer("all_day", { mode: "boolean" }).notNull().default(false),
     day: text("day").notNull(),
     isExam: integer("is_exam", { mode: "boolean" }).notNull().default(false),
+    description: text("description"),
     syncedAt: text("synced_at").notNull(),
   },
   (t) => [index("events_day_idx").on(t.day)],
@@ -231,6 +237,47 @@ export const routingRules = sqliteTable("routing_rules", {
   sortOrder: integer("sort_order").notNull().default(0),
 });
 
+// Every event on a travail or perso calendar is a block; a block may be linked to a task.
+export const blocks = sqliteTable(
+  "blocks",
+  {
+    // Same as the event's id: `<calendar source id>:<external event id>`.
+    id: text("id").primaryKey(),
+    sourceId: text("source_id").notNull(),
+    externalId: text("external_id").notNull(),
+    title: text("title").notNull(),
+    start: text("start").notNull(),
+    end: text("end").notNull(),
+    taskId: text("task_id"),
+    status: text("status", { enum: ["proposed", "planned", "done", "missed", "replanned", "dropped"] }).notNull().default("planned"),
+    origin: text("origin", { enum: ["cockpit", "calendar"] }).notNull(),
+    estimateMin: integer("estimate_min"),
+    // Snapshot of the task's points and type, kept because a closed task leaves the tasks table.
+    effort: integer("effort"),
+    taskType: text("task_type"),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [index("blocks_start_idx").on(t.start)],
+);
+
+export const taskTypes = sqliteTable("task_types", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  minutesPerPoint: integer("minutes_per_point"),
+  samples: integer("samples").notNull().default(0),
+});
+
+// Each state change and replan decision, for undo and for learning.
+export const blockLog = sqliteTable("block_log", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  at: text("at").notNull(),
+  blockId: text("block_id").notNull(),
+  action: text("action").notNull(),
+  before: text("before", { mode: "json" }).$type<unknown>(),
+  after: text("after", { mode: "json" }).$type<unknown>(),
+  reason: text("reason"),
+});
+
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value", { mode: "json" }).$type<unknown>(),
@@ -244,5 +291,7 @@ export type TaskOverride = typeof taskOverrides.$inferSelect;
 export type ChangeLogEntry = typeof changeLog.$inferSelect;
 export type InboxItem = typeof inbox.$inferSelect;
 export type RoutingRule = typeof routingRules.$inferSelect;
+export type Block = typeof blocks.$inferSelect;
+export type TaskTypeRow = typeof taskTypes.$inferSelect;
 export type Milestone = typeof milestones.$inferSelect;
 export type CalendarEvent = typeof events.$inferSelect;

@@ -88,3 +88,26 @@ export function formatDuration(minutes: number): string {
   const m = minutes % 60;
   return h ? (m ? `${h} h ${String(m).padStart(2, "0")}` : `${h} h`) : `${m} min`;
 }
+
+const wallFmt = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+
+/** Paris offset from UTC at an instant, in minutes (60 in winter, 120 in summer). */
+export function parisOffsetMin(ts: number): number {
+  const p = Object.fromEntries(wallFmt.formatToParts(new Date(ts)).map((x) => [x.type, Number(x.value)]));
+  return Math.round((Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute) - ts) / 60000);
+}
+
+/** The instant (epoch ms) at `minutes` after midnight on a Paris day. */
+export function parisInstant(day: string, minutes: number): number {
+  const [y, m, d] = day.split("-").map(Number);
+  const wall = Date.UTC(y, m - 1, d, 0, minutes);
+  let t = wall - 60 * 60000;
+  t = wall - parisOffsetMin(t) * 60000;
+  return wall - parisOffsetMin(t) * 60000;
+}
+
+/** ISO weekday of a day string: 1 Monday … 7 Sunday. */
+export function isoWeekday(day: string): number {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay() || 7;
+}

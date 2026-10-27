@@ -218,6 +218,7 @@ async function pull(source: Source): Promise<PullResult> {
           statusRaw: raw,
           dueDate: dateRange(get(p, map.dueProp)).start,
           projectName: source.config.projectName ?? null,
+          taskType: text(get(p, source.config.taskTypeProp)) ?? source.config.taskType ?? null,
           priority: priorityValue(get(p, map.priorityProp)),
           hasPriorityProp: Boolean(map.priorityProp),
           effort: (EFFORTS as readonly number[]).includes(effort) ? effort : null,

@@ -6,6 +6,7 @@ import { formatDayLong, parisDay } from "@/lib/dates";
 import { CloseOnEscape } from "./detail-link";
 import { DueLabel, PillarDot, PriorityBars, SourceTag, TaskList } from "./ui";
 import { ProjectControls, TaskControls } from "./task-controls";
+import { PlanBlock } from "./plan-block";
 
 type SP = Record<string, string | string[] | undefined>;
 
@@ -36,6 +37,7 @@ export async function DetailPanel({ sp, path }: { sp: SP; path: string }) {
           dueDate={task.dueDate}
           triage={needsTriage(task)}
         />
+        {task.status !== "done" && <PlanBlock taskId={task.id} />}
         <Facts>
           <Fact label="Échéance">{task.dueDate ? <>{formatDayLong(task.dueDate)} · <DueLabel due={task.dueDate} today={today} /></> : "Aucune"}</Fact>
           <Fact label="Statut">{task.statusRaw ?? task.status}</Fact>
