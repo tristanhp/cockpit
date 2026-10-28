@@ -22,6 +22,18 @@
     { "id": "notion-taches", "kind": "notion", "role": "tasks", "name": "Tâches", "externalRef": "<notion-database-or-page-id>" },
     { "id": "linear-team", "kind": "linear", "role": "tasks", "name": "Linear · Équipe", "externalRef": "ENG", "config": { "teamKey": "ENG" } }
   ],
+  "vision": {
+    "identity": ["Quelqu'un qui finit ce qu'il commence"],
+    "horizon": "Dans cinq ans : un métier choisi, un corps entretenu, un projet à moi qui tourne.",
+    "rules": ["Trois objectifs par saison, pas un de plus", "Les habitudes protégées ne se négocient pas"]
+  },
+  "years": [
+    { "id": "annee-2026", "theme": "L'année de la bascule", "motto": "Un pas après l'autre", "startDate": "2026-09-01", "endDate": "2027-08-31" }
+  ],
+  "goals": [
+    { "id": "stage", "title": "Décrocher un stage de fin d'études", "horizon": "year", "yearId": "annee-2026", "measure": "boolean" },
+    { "id": "candidatures", "title": "Envoyer dix candidatures ciblées", "horizon": "season", "seasonId": "automne", "parentGoalId": "stage", "measure": "number", "target": 10, "current": 0, "unit": "candidatures" }
+  ],
   "habits": [
     { "name": "Lecture 20 minutes" },
     { "name": "Étirements" },

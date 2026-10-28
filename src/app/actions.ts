@@ -15,6 +15,8 @@ import { requireAuth } from "@/lib/auth/guard";
 import { sendToAll } from "@/push";
 import { adjustPlan, closeDay, dismissCatchUp, resolveLeftover, startDay, type CloseInput } from "@/rituals";
 import { saveRitualSettings } from "@/rituals/settings";
+import { addGoalMilestone, addGoalTask, exportGoals, exportQuietly, linkGoal, saveGoal, saveVision, saveYear, setGoalProgress, setGoalStatus, setProjectExempt, unlinkGoal, type GoalInput, type LinkKind, type VisionInput, type YearInput } from "@/goals";
+import type { GoalStatus } from "@/engine/goals";
 import type { LeftoverChoice } from "@/planning";
 
 // Local, single-user app for now: the dev server listens on 127.0.0.1 only.
@@ -111,7 +113,7 @@ export async function searchEverything(query: string): Promise<SearchHit[]> {
   const projectHits = projects
     .filter((p) => fold(p.name).includes(q))
     .slice(0, 5)
-    .map((p) => ({ id: p.id, kind: "project" as const, label: p.name, hint: p.meteo ?? undefined, href: `/cockpit?p=${encodeURIComponent(p.id)}` }));
+    .map((p) => ({ id: p.id, kind: "project" as const, label: p.name, hint: p.meteo ?? undefined, href: `/objectifs?vue=projets&p=${encodeURIComponent(p.id)}` }));
   return [...projectHits, ...taskHits];
 }
 
@@ -305,4 +307,74 @@ export async function saveRitualTimes(formData: FormData) {
   await requireAuth();
   const get = (k: string) => String(formData.get(k) ?? "");
   return run(() => saveRitualSettings({ capWeekday: get("capWeekday"), capWeekend: get("capWeekend"), clotureTime: get("clotureTime"), hardStop: get("hardStop") }));
+}
+
+// ---- Vision and goals ------------------------------------------------------------
+
+/** Runs an edit, then refreshes the vault files (best effort). */
+const edit = (fn: () => Promise<unknown>) =>
+  run(async () => {
+    await fn();
+    await exportQuietly();
+  });
+
+export async function saveVisionAction(input: VisionInput) {
+  await requireAuth();
+  return edit(() => saveVision(input));
+}
+
+export async function saveYearAction(input: YearInput) {
+  await requireAuth();
+  return edit(() => saveYear(input));
+}
+
+export async function saveGoalAction(input: GoalInput) {
+  await requireAuth();
+  return edit(() => saveGoal(input));
+}
+
+export async function setGoalStatusAction(id: string, status: GoalStatus) {
+  await requireAuth();
+  return edit(() => setGoalStatus(id, status));
+}
+
+export async function setGoalProgressAction(id: string, current: number) {
+  await requireAuth();
+  return edit(() => setGoalProgress(id, current));
+}
+
+export async function linkGoalAction(goalId: string, kind: LinkKind, refId: string) {
+  await requireAuth();
+  return edit(() => linkGoal(goalId, kind, refId));
+}
+
+export async function unlinkGoalAction(goalId: string, kind: LinkKind, refId: string) {
+  await requireAuth();
+  return edit(() => unlinkGoal(goalId, kind, refId));
+}
+
+export async function setProjectExemptAction(projectId: string, exempt: boolean) {
+  await requireAuth();
+  return edit(() => setProjectExempt(projectId, exempt));
+}
+
+export async function addGoalMilestoneAction(goalId: string, name: string, date: string) {
+  await requireAuth();
+  return edit(() => addGoalMilestone(goalId, name, date));
+}
+
+export async function addGoalTaskAction(goalId: string, input: { title: string; dueDate: string | null; sourceId: string; projectId: string | null }) {
+  await requireAuth();
+  return edit(() => addGoalTask(goalId, input));
+}
+
+/** The button in Réglages: writes the vault files now and says what happened. */
+export async function exportGoalsAction(): Promise<ActionResult & { message?: string }> {
+  await requireAuth();
+  try {
+    const r = await exportGoals();
+    return { ok: true, message: "written" in r ? `${r.written.length} fichiers écrits.` : `Rien d'écrit : ${r.skipped}.` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Une erreur est survenue" };
+  }
 }

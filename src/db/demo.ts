@@ -249,6 +249,35 @@ async function main() {
   }
   await db.insert(schema.habitLogs).values(logs).onConflictDoNothing();
 
+  // Vision, a year and season goals: a milestones goal, a number goal with nothing planned (sans fil),
+  // a stalled project (à l'arrêt), a paused habit goal and a priority project with no goal (Covoit').
+  await db.insert(schema.vision).values({
+    id: "main",
+    identity: ["Quelqu'un qui finit ce qu'il commence", "Un corps entretenu, une tête reposée", "Curieux, jamais pressé"],
+    horizon: "Dans cinq ans : un métier choisi plutôt que subi, un marathon courant en moins de quatre heures, un projet à moi qui tourne.",
+    rules: ["Trois objectifs par saison, pas un de plus", "Les habitudes protégées ne se négocient pas", "Capturer d'abord, trier le soir"],
+    updatedAt: now,
+  });
+  await db.insert(schema.years).values({ id: "annee", theme: "L'année de la bascule", motto: "Un pas après l'autre", startDate: day(-60), endDate: day(300) });
+  await db.insert(schema.goals).values([
+    { id: "g-stage", title: "Décrocher un stage de fin d'études", horizon: "year", yearId: "annee", measure: "boolean", pillarId: "carriere", status: "active", sortOrder: 0 },
+    { id: "g-photo", title: "Faire vivre le club photo", horizon: "year", yearId: "annee", measure: "boolean", pillarId: "assos", status: "active", sortOrder: 1 },
+    { id: "g-memoire", title: "Soutenir le mémoire", horizon: "season", seasonId: "saison", measure: "milestones", pillarId: "etudes", status: "active", dueDate: day(40), sortOrder: 2 },
+    { id: "g-candidatures", title: "Envoyer dix candidatures ciblées", horizon: "season", seasonId: "saison", parentGoalId: "g-stage", measure: "number", target: 10, current: 3, unit: "candidatures", pillarId: "carriere", status: "active", sortOrder: 3 },
+    { id: "g-sorties", title: "Tenir les sorties longues du plan", horizon: "season", seasonId: "saison", measure: "number", target: 8, current: 5, unit: "sorties", pillarId: "sport", status: "active", sortOrder: 4 },
+    { id: "g-lecture", title: "Lire un peu chaque jour", horizon: "season", seasonId: "saison", measure: "habit", pillarId: "vie-perso", status: "paused", sortOrder: 5 },
+  ]);
+  await db.insert(schema.goalLinks).values([
+    { goalId: "g-stage", kind: "project", refId: "notion-projets:stage" },
+    { goalId: "g-photo", kind: "project", refId: "notion-projets:photo" },
+    { goalId: "g-memoire", kind: "project", refId: "notion-projets:memoire" },
+    { goalId: "g-memoire", kind: "milestone", refId: "notion-jalons:m0" },
+    { goalId: "g-candidatures", kind: "project", refId: "notion-projets:stage" },
+    { goalId: "g-candidatures", kind: "milestone", refId: "notion-jalons:m1" },
+    { goalId: "g-sorties", kind: "milestone", refId: "notion-jalons:m3" },
+    { goalId: "g-lecture", kind: "habit", refId: "lecture" },
+  ]);
+
   // Yesterday's clôture, with the state of the evening: since then a ticket arrived, a due date moved
   // and a training block slid into a class (the cap's "Depuis hier soir").
   const taskRows = await db.select().from(schema.tasks);

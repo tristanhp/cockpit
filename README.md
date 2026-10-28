@@ -25,9 +25,9 @@ npm run demo   # fictional data, no API keys needed → http://localhost:3000
 |---|---|
 | **Aujourd'hui** | What's pressing (late, today, tomorrow) and this week's tasks from every source; **the day drawn to scale**, with free slots between 9 h and 22 h measured out (groundwork for time-blocking) and a "now" line; P1 projects with their next action; milestones and exams for the next 14 days; Linear tickets waiting to be claimed |
 | **Tâches** | Every open task across all sources, grouped by pillar, by source or by due date |
-| **Cockpit** | Projects grouped by level with weather and next action, the max-3-P1 rule flagged, a 6-week milestone timeline |
+| **Objectifs** | The vision, the year's theme and the season's goals (three active at most) with progress and signals (*sans fil*, *à l'arrêt*, *sur le fil*); each goal opens a panel showing its thread down to blocks. The **Projets** tab (formerly Cockpit) groups projects by priority with weather, next action and a 6-week milestone timeline |
 | **Réglages** | Source registry: per-source status and errors, on/off switches, auto-discovery of new Notion databases, Linear teams and calendars, add a Notion database by pasting its URL |
-| **Everywhere** | `Ctrl K` command palette (navigation, accent-insensitive search over tasks and projects, sync) · detail panels for tasks and projects, addressable by URL (`?t=` / `?p=`) and closed with `Esc` · bottom tab bar on phones |
+| **Everywhere** | `Ctrl K` command palette (navigation, accent-insensitive search over tasks and projects, sync) · detail panels for tasks and projects, addressable by URL (`?t=` / `?p=` / `?g=`) and closed with `Esc` · bottom tab bar on phones |
 
 **Design.** A French *grands carreaux* notebook: cool white paper with a red margin line, blue-black fountain-pen ink, Newsreader serif headings and planner-style dot leaders between a task and its date. The dark theme is the same notebook at night.
 

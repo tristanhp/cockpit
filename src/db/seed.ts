@@ -19,6 +19,25 @@ type SeedFile = {
     config?: SourceConfig;
     enabled?: boolean;
   }[];
+  vision?: { identity?: string[]; horizon?: string; rules?: string[] };
+  years?: { id: string; theme: string; motto?: string; startDate: string; endDate: string }[];
+  goals?: {
+    id: string;
+    title: string;
+    horizon: "year" | "season";
+    yearId?: string;
+    seasonId?: string;
+    parentGoalId?: string;
+    pillarId?: string;
+    measure: "milestones" | "number" | "habit" | "boolean";
+    target?: number;
+    current?: number;
+    unit?: string;
+    status?: "active" | "paused" | "done";
+    dueDate?: string;
+    notes?: string;
+    links?: { kind: "project" | "milestone" | "habit" | "task"; ref: string }[];
+  }[];
   habits?: { id?: string; name: string; targetPct?: number; protected?: boolean }[];
   calendars: { name: string; calendarId: string; calendarRole: SourceConfig["calendarRole"]; enabled?: boolean }[];
 };
@@ -63,6 +82,21 @@ async function main() {
       .insert(schema.habits)
       .values(seed.habits.map((h, i) => ({ id: h.id ?? slug(h.name), name: h.name, targetPct: h.targetPct ?? 80, protected: h.protected ?? false, sortOrder: i })))
       .onConflictDoNothing();
+
+  if (seed.vision)
+    await db
+      .insert(schema.vision)
+      .values({ id: "main", identity: seed.vision.identity ?? [], horizon: seed.vision.horizon ?? "", rules: seed.vision.rules ?? [], updatedAt: new Date().toISOString() })
+      .onConflictDoNothing();
+  if (seed.years?.length) await db.insert(schema.years).values(seed.years.map((y) => ({ ...y, motto: y.motto ?? null }))).onConflictDoNothing();
+  for (const [i, g] of (seed.goals ?? []).entries()) {
+    const { links = [], ...goal } = g;
+    await db
+      .insert(schema.goals)
+      .values({ ...goal, yearId: goal.yearId ?? null, seasonId: goal.seasonId ?? null, parentGoalId: goal.parentGoalId ?? null, pillarId: goal.pillarId ?? null, target: goal.target ?? null, current: goal.current ?? null, unit: goal.unit ?? null, status: goal.status ?? "active", dueDate: goal.dueDate ?? null, notes: goal.notes ?? null, sortOrder: i })
+      .onConflictDoNothing();
+    if (links.length) await db.insert(schema.goalLinks).values(links.map((l) => ({ goalId: g.id, kind: l.kind, refId: l.ref }))).onConflictDoNothing();
+  }
 
   console.log(`Seed OK (${path})`);
 }

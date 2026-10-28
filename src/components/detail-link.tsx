@@ -4,12 +4,13 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
-/** Links to the current page with `?t=` (task) or `?p=` (project) set, which opens the detail panel. */
-export function DetailLink({ param, id, className, children }: { param: "t" | "p"; id: string; className?: string; children: ReactNode }) {
+/** Links to the current page with `?t=` (task), `?p=` (project) or `?g=` (goal) set, which opens the detail panel. */
+export function DetailLink({ param, id, className, children }: { param: "t" | "p" | "g"; id: string; className?: string; children: ReactNode }) {
   const pathname = usePathname();
   const params = new URLSearchParams(useSearchParams());
   params.delete("t");
   params.delete("p");
+  params.delete("g");
   params.set(param, id);
   return (
     <Link href={`${pathname}?${params}`} scroll={false} className={className}>
