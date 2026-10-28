@@ -9,13 +9,13 @@ import { openPalette } from "./command-palette";
 const LINKS = [
   { href: "/", label: "Aujourd'hui", short: "Jour", icon: "M4 6h16M4 12h10M4 18h7" },
   { href: "/taches", label: "Tâches", short: "Tâches", icon: "M5 7l2 2 4-4M5 15l2 2 4-4M14 8h6M14 16h6" },
-  { href: "/cockpit", label: "Cockpit", short: "Cockpit", icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm3.5 5.5-2 5-5 2 2-5z" },
+  { href: "/objectifs", label: "Objectifs", short: "Objectifs", icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm3.5 5.5-2 5-5 2 2-5z" },
   { href: "/reglages", label: "Réglages", short: "Réglages", icon: "M4 7h10M18 7h2M4 17h4M12 17h8M14 5v4M8 15v4" },
 ];
 
-// Behind "Plus" on the phone. Objectifs joins this tab bar when its route exists (S6).
+// Behind "Plus" on the phone. Objectifs (S6) and the rest live behind it.
 const MORE = [
-  { href: "/cockpit", label: "Cockpit", icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm3.5 5.5-2 5-5 2 2-5z" },
+  { href: "/objectifs", label: "Objectifs", icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm3.5 5.5-2 5-5 2 2-5z" },
   { href: "/semaine", label: "Semaine", icon: "M4 6h16M4 12h16M4 18h16M9 4v4M15 10v4M8 16v4" },
   { href: "/habitudes", label: "Habitudes", icon: "M5 12l4 4 10-10M5 5h6M5 19h6" },
   { href: "/cloture", label: "Clôture", icon: "M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" },

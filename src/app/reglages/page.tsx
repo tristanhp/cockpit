@@ -11,6 +11,7 @@ import { addNotionSource, addRoutingRule, adoptDiscovery, deleteRoutingRule, dis
 import { UndoButton } from "@/components/undo-button";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { RitualTimes } from "@/components/ritual-times";
+import { ExportGoals } from "@/components/export-goals";
 import { loadRitualSettings } from "@/rituals/settings";
 import { SecurityPanel } from "@/components/security-panel";
 import { authDisabled } from "@/lib/auth/session";
@@ -186,6 +187,10 @@ async function Settings() {
 
           <Section title="Rituels" aside="le cap et la clôture">
             <RitualTimes settings={rituals} />
+          </Section>
+
+          <Section title="Export des objectifs" aside="Markdown pour le coffre">
+            <ExportGoals configured={Boolean(process.env.VAULT_GOALS_PATH)} />
           </Section>
 
           <Section title="Notifications" count={devices.length}>

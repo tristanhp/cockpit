@@ -59,7 +59,7 @@ npx web-push generate-vapid-keys    # VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | step 2 |
 | `VAPID_SUBJECT` | `mailto:you@example.com`: who the push services can contact |
 
-Do **not** set `COCKPIT_DEMO` or `COCKPIT_AUTH=off` in production: either one switches authentication off. `VAULT_INBOX_PATH` only makes sense on your own machine (it writes Markdown files for ideas); leave it unset on Vercel and ideas stay in the Inbox.
+Do **not** set `COCKPIT_DEMO` or `COCKPIT_AUTH=off` in production: either one switches authentication off. `VAULT_INBOX_PATH` (ideas) and `VAULT_GOALS_PATH` (the vision and one file per season, written after each edit and from the button in Réglages) only make sense on your own machine because they write Markdown files; leave them unset on Vercel and nothing is exported.
 
 Google: in the OAuth client, add `https://<your-app>/api/google/callback` to the authorised redirect URIs. Then open Réglages and press **Connecter** (or **Reconnecter pour autoriser l'écriture** if the button says so).
 

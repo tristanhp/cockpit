@@ -13,6 +13,9 @@ import { DetailPanel } from "@/components/detail-panel";
 import { MissedCard, NowStrip } from "@/components/blocks";
 import { DayReplanSheet, ReplanSheet } from "@/components/replan-sheet";
 import { Cap } from "@/components/cap";
+import { goalsOverview } from "@/goals";
+import { needsAttention } from "@/engine/goals";
+import { SignalChip } from "@/components/goal-panel";
 import { loadRitualSettings, minutesOf } from "@/rituals/settings";
 
 export default function TodayPage(props: PageProps<"/">) {
@@ -27,7 +30,7 @@ async function Today({ searchParams }: PageProps<"/">) {
   await connection();
   const sp = await searchParams;
   const today = parisDay();
-  const [tasks, events, ctx, milestones, exams, synced, seasons, rituals] = await Promise.all([
+  const [tasks, events, ctx, milestones, exams, synced, seasons, rituals, goals] = await Promise.all([
     openTasks(),
     eventsForDay(today),
     loadContext(),
@@ -36,7 +39,9 @@ async function Today({ searchParams }: PageProps<"/">) {
     lastSync(),
     db.select().from(schema.seasons).where(and(lte(schema.seasons.startDate, today), gte(schema.seasons.endDate, today))),
     loadRitualSettings(),
+    goalsOverview(),
   ]);
+  const stuck = [...goals.seasonGoals, ...goals.yearGoals].filter((g) => needsAttention(g.signals));
   // The clôture button shows from a quarter of an hour before its time.
   const clotureSoon = parisMinutes(new Date(nowMs())) >= minutesOf(rituals.clotureTime) - 15;
 
@@ -93,6 +98,26 @@ async function Today({ searchParams }: PageProps<"/">) {
           <Section title="Cette semaine" count={week.length}>
             <TaskList tasks={week} today={today} empty="Aucune échéance dans les 7 prochains jours." />
           </Section>
+          {(stuck.length > 0 || goals.withoutGoal.length > 0) && (
+            <Section title="Objectifs" count={stuck.length + goals.withoutGoal.length} aside={<Link href="/objectifs" className="hover:text-ink">tout voir</Link>}>
+              <ul>
+                {stuck.map((g) => (
+                  <li key={g.goal.id} className="border-b border-rule last:border-b-0">
+                    <DetailLink param="g" id={g.goal.id} className="flex items-baseline gap-2 py-2.5 hover:bg-paper-2/60">
+                      <span className="min-w-0 flex-1 truncate">{g.goal.title}</span>
+                      {g.signals.filter((s) => s !== "sur-le-fil").map((s) => <SignalChip key={s} signal={s} />)}
+                    </DetailLink>
+                  </li>
+                ))}
+                {goals.withoutGoal.length > 0 && (
+                  <li className="py-2.5 text-sm text-ink-soft">
+                    {goals.withoutGoal.length} projet{goals.withoutGoal.length > 1 ? "s" : ""} prioritaire{goals.withoutGoal.length > 1 ? "s" : ""} sans objectif.{" "}
+                    <Link href="/objectifs" className="underline decoration-rule-strong underline-offset-4 hover:decoration-accent">Relier</Link>
+                  </li>
+                )}
+              </ul>
+            </Section>
+          )}
           {triage.length > 0 && (
             <Section
               title="À trier"

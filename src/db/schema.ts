@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index, primaryKey } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index, primaryKey } from "drizzle-orm/sqlite-core";
 
 // Everything that shapes the system (piliers, niveaux, saisons, sources) is data,
 // so that a new project, semester or tool never requires a code change.
@@ -354,6 +354,63 @@ export type DaySnapshot = {
   clashes: string[];
 };
 
+// Vision, year and season goals. Everything is data: a new horizon or measure needs no code.
+// A single row (`id` = "main"): identity statements, the 3-5 year horizon and the rules of the system.
+export const vision = sqliteTable("vision", {
+  id: text("id").primaryKey(),
+  identity: text("identity", { mode: "json" }).$type<string[]>().notNull().default([]),
+  horizon: text("horizon").notNull().default(""),
+  rules: text("rules", { mode: "json" }).$type<string[]>().notNull().default([]),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const years = sqliteTable("years", {
+  id: text("id").primaryKey(),
+  theme: text("theme").notNull(),
+  motto: text("motto"),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+});
+
+export const goals = sqliteTable(
+  "goals",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    horizon: text("horizon", { enum: ["year", "season"] }).notNull(),
+    yearId: text("year_id"),
+    seasonId: text("season_id"),
+    // A season goal can serve a year goal.
+    parentGoalId: text("parent_goal_id"),
+    pillarId: text("pillar_id"),
+    measure: text("measure", { enum: ["milestones", "number", "habit", "boolean"] }).notNull(),
+    target: real("target"),
+    current: real("current"),
+    unit: text("unit"),
+    status: text("status", { enum: ["active", "paused", "done"] }).notNull().default("active"),
+    dueDate: text("due_date"),
+    notes: text("notes"),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (t) => [index("goals_season_idx").on(t.seasonId)],
+);
+
+// What a goal is made of. `refId` is a project, milestone, habit or task id.
+export const goalLinks = sqliteTable(
+  "goal_links",
+  {
+    goalId: text("goal_id").notNull(),
+    kind: text("kind", { enum: ["project", "milestone", "habit", "task"] }).notNull(),
+    refId: text("ref_id").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.goalId, t.kind, t.refId] })],
+);
+
+// Projects marked "hors objectifs" on purpose. Kept apart from `projects`, which a sync replaces.
+export const goalExemptions = sqliteTable("goal_exemptions", {
+  projectId: text("project_id").primaryKey(),
+});
+
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value", { mode: "json" }).$type<unknown>(),
@@ -371,6 +428,10 @@ export type Credential = typeof credentials.$inferSelect;
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
 export type Block = typeof blocks.$inferSelect;
 export type TaskTypeRow = typeof taskTypes.$inferSelect;
+export type Vision = typeof vision.$inferSelect;
+export type Year = typeof years.$inferSelect;
+export type Goal = typeof goals.$inferSelect;
+export type GoalLink = typeof goalLinks.$inferSelect;
 export type Habit = typeof habits.$inferSelect;
 export type HabitLog = typeof habitLogs.$inferSelect;
 export type DayPlanRow = typeof dayPlans.$inferSelect;
