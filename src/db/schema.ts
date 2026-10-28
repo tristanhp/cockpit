@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, index, primaryKey } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index, primaryKey, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 // Everything that shapes the system (piliers, niveaux, saisons, sources) is data,
 // so that a new project, semester or tool never requires a code change.
@@ -79,6 +79,9 @@ export type SourceConfig = {
   graded?: boolean;
   // Linear: the team's workflow states, read once and cached here.
   workflowStates?: { id: string; name: string; type: string; position: number }[];
+  // Notion reviews: which review field goes to which property (no property name lives in code).
+  // Fields: title, week, win, focus, energy, sleep, bedtimes, blocks, points, resume, summary.
+  reviewMap?: Record<string, string>;
   // Task type for every item of this source, and the Notion property that holds it per row.
   taskType?: string;
   taskTypeProp?: string;
@@ -411,6 +414,60 @@ export const goalExemptions = sqliteTable("goal_exemptions", {
   projectId: text("project_id").primaryKey(),
 });
 
+// The weekly review. Saved as a draft at every step so an unfinished one can be resumed in one click.
+export const reviews = sqliteTable(
+  "reviews",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind", { enum: ["weekly"] }).notNull().default("weekly"),
+    // Monday of the week under review.
+    weekStart: text("week_start").notNull(),
+    status: text("status", { enum: ["draft", "done"] }).notNull().default("draft"),
+    data: text("data", { mode: "json" }).$type<ReviewData>().notNull().default({}),
+    createdAt: text("created_at").notNull(),
+    completedAt: text("completed_at"),
+  },
+  (t) => [uniqueIndex("reviews_week_idx").on(t.kind, t.weekStart)],
+);
+
+export type ReviewData = {
+  step?: number;
+  numbers?: { sleepAvg: string; bedtimesOnTarget: number | null; energy: number | null; win: string };
+  /** Goal id -> what was decided for a goal without a thread. */
+  threads?: Record<string, "plan" | "pause">;
+  /** Answer to "qu'est-ce qui te permettrait de reprendre ?". */
+  resume?: string;
+  /** One expected result per top-priority project, for the week ahead. */
+  focus?: { projectId: string; name: string; result: string }[];
+  /** Project id -> was last week's focus held. */
+  focusHeld?: Record<string, boolean>;
+  proposal?: StoredProposal;
+  confirmedAt?: string;
+  adjustments?: string[];
+};
+
+export type StoredProposal = {
+  weekStart: string;
+  budget: number;
+  alreadyPlanned: number;
+  blocks: { key: string; taskId: string | null; goalId: string | null; title: string; start: number; end: number; points: number; reason: string; excluded?: boolean }[];
+  unplaced: { id: string; title: string; reason: string; points: number }[];
+  generatedAt: string;
+};
+
+// Computed from blocks, rituals and the sport calendar; recomputed on sync.
+export const weeklyMetrics = sqliteTable("weekly_metrics", {
+  weekStart: text("week_start").primaryKey(),
+  pointsDone: integer("points_done").notNull().default(0),
+  pointsPlanned: integer("points_planned").notNull().default(0),
+  blocksKept: integer("blocks_kept").notNull().default(0),
+  blocksPlanned: integer("blocks_planned").notNull().default(0),
+  ritualsDone: integer("rituals_done").notNull().default(0),
+  sportDone: integer("sport_done").notNull().default(0),
+  sportPlanned: integer("sport_planned").notNull().default(0),
+  computedAt: text("computed_at").notNull(),
+});
+
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value", { mode: "json" }).$type<unknown>(),
@@ -428,6 +485,8 @@ export type Credential = typeof credentials.$inferSelect;
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
 export type Block = typeof blocks.$inferSelect;
 export type TaskTypeRow = typeof taskTypes.$inferSelect;
+export type Review = typeof reviews.$inferSelect;
+export type WeeklyMetrics = typeof weeklyMetrics.$inferSelect;
 export type Vision = typeof vision.$inferSelect;
 export type Year = typeof years.$inferSelect;
 export type Goal = typeof goals.$inferSelect;

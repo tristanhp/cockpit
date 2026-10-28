@@ -278,6 +278,30 @@ async function main() {
     { goalId: "g-lecture", kind: "habit", refId: "lecture" },
   ]);
 
+  // Four weeks of metrics (velocity 9 points, so a budget of 9) and two finished reviews: the sleep target was
+  // missed two weeks running and less than 60 % of the blocks were kept last week and this one ("jamais deux fois de suite").
+  const mk = (n: number, m: { pointsDone: number; pointsPlanned: number; blocksKept: number; blocksPlanned: number; ritualsDone: number; sportDone: number; sportPlanned: number }) =>
+    ({ weekStart: addDays(week0, -7 * n), ...m, computedAt: now });
+  await db.insert(schema.weeklyMetrics).values([
+    mk(1, { pointsDone: 10, pointsPlanned: 19, blocksKept: 5, blocksPlanned: 10, ritualsDone: 6, sportDone: 3, sportPlanned: 3 }),
+    mk(2, { pointsDone: 6, pointsPlanned: 12, blocksKept: 7, blocksPlanned: 11, ritualsDone: 5, sportDone: 3, sportPlanned: 3 }),
+    mk(3, { pointsDone: 12, pointsPlanned: 14, blocksKept: 9, blocksPlanned: 10, ritualsDone: 6, sportDone: 3, sportPlanned: 3 }),
+    mk(4, { pointsDone: 8, pointsPlanned: 13, blocksKept: 7, blocksPlanned: 9, ritualsDone: 6, sportDone: 2, sportPlanned: 3 }),
+  ]);
+  await db.insert(schema.reviews).values([
+    {
+      id: `review-${addDays(week0, -7)}`, kind: "weekly", weekStart: addDays(week0, -7), status: "done", createdAt: at(-8, "19:30"), completedAt: at(-8, "19:45"),
+      data: {
+        step: 4, numbers: { sleepAvg: "6 h 40", bedtimesOnTarget: 4, energy: 3, win: "Candidature envoyée" },
+        focus: [{ projectId: "notion-projets:memoire", name: "Mémoire de fin d'études", result: "Finir le plan détaillé" }, { projectId: "notion-projets:stage", name: "Candidatures stage de fin d'études", result: "Envoyer 2 candidatures" }],
+      },
+    },
+    {
+      id: `review-${addDays(week0, -14)}`, kind: "weekly", weekStart: addDays(week0, -14), status: "done", createdAt: at(-15, "19:30"), completedAt: at(-15, "19:50"),
+      data: { step: 4, numbers: { sleepAvg: "6 h 20", bedtimesOnTarget: 3, energy: 3, win: "Mi-parcours préparé" } },
+    },
+  ]);
+
   // Yesterday's clôture, with the state of the evening: since then a ticket arrived, a due date moved
   // and a training block slid into a class (the cap's "Depuis hier soir").
   const taskRows = await db.select().from(schema.tasks);

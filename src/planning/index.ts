@@ -7,6 +7,8 @@ import {
 } from "@/engine/planning";
 import { addDays, isoWeekday, nowMs, parisDay, parisInstant } from "@/lib/dates";
 import { fold } from "@/lib/text";
+import { needsTriage, openTasks } from "@/lib/queries";
+import { nextSlotFor, proposeWeek, type Proposal, type ProposedBlock, type Reservation, type WeekTask } from "@/engine/week";
 import { createBlockEvent, logBlock, moveBlockEvent, removeBlock } from "@/writeback/blocks";
 
 export const DEFAULT_TYPE = "default";
@@ -146,6 +148,59 @@ export async function applyLeftover(blockId: string, choice: LeftoverChoice, now
       : ((await placeFrom(block, addDays(today, 2), weekEnd, now)) ?? (await placeFrom(block, tomorrow, null, now)));
   if (!placement) throw new Error("Aucun créneau libre cette semaine");
   await moveBlockEvent(block, placement.start, placement.end, choice === "tomorrow" ? "Clôture : demain" : "Clôture : plus tard cette semaine");
+}
+
+// ---- The week ------------------------------------------------------------------------------
+
+/** Free slots of a week, optionally keeping some intervals free of work (the other proposed blocks). */
+async function weekSlots(weekStart: string, extraBusy: { start: number; end: number }[] = []): Promise<Slot[]> {
+  const settings = await loadSettings();
+  const events = await busyEvents(weekStart, addDays(weekStart, 6));
+  const busy: BusyEvent[] = [...events, ...extraBusy.map((e, i) => ({ ...e, id: `proposed-${i}`, kind: "busy" as const }))];
+  return freeSlots(busy, daysFrom(weekStart, 7), settings);
+}
+
+/** What a proposed week is made of: the open tasks that are yours, their durations, the slots and the budget already used. */
+export async function proposeWeekFor(weekStart: string, budget: number, reservations: Reservation[], now = nowMs()): Promise<Proposal> {
+  const settings = await loadSettings();
+  const end = addDays(weekStart, 6);
+  const [open, blocks, types] = await Promise.all([openTasks(), blocksBetween(weekStart, end), db.select().from(schema.taskTypes)]);
+  const live = blocks.filter((b) => ["planned", "proposed"].includes(b.status));
+  const planned = new Set(live.map((b) => b.taskId).filter(Boolean));
+  const rate = new Map(types.map((t) => [t.id, t]));
+  const tasks: WeekTask[] = open
+    .filter((t) => !needsTriage(t) && !planned.has(t.id))
+    .map((t) => ({ id: t.id, title: t.identifier ? `${t.identifier} ${t.title}` : t.title, priority: t.priority, dueDate: t.dueDate, effort: t.effort, minutes: durationFor(t, rate.get(typeId(t.taskType)), settings) }));
+  return proposeWeek({
+    weekStart, tasks, reservations, budget, now,
+    slots: await weekSlots(weekStart),
+    alreadyPlanned: live.reduce((n, b) => n + (b.effort ?? 0), 0),
+    neighbours: live.map((b) => ({ start: Date.parse(b.start), end: Date.parse(b.end) })),
+  });
+}
+
+/** "Autre créneau": the next later free slot for one proposed block, keeping the others where they are. */
+export async function otherSlot(weekStart: string, block: ProposedBlock, others: { start: number; end: number }[], now = nowMs()): Promise<{ start: number; end: number } | null> {
+  const task = block.taskId ? await db.query.tasks.findFirst({ where: eq(schema.tasks.id, block.taskId) }) : null;
+  return nextSlotFor({ start: block.start, end: block.end, priority: task?.priority ?? 3, dueDate: task?.dueDate ?? null }, await weekSlots(weekStart, others), now, weekStart);
+}
+
+/** Writes confirmed blocks to the calendar through the S3 write path. Nothing protected is ever overlapped. */
+export async function createWeekBlocks(blocks: ProposedBlock[], reason: string): Promise<number> {
+  if (!blocks.length) return 0;
+  const first = Math.min(...blocks.map((b) => b.start));
+  const events = await busyEvents(parisDay(new Date(first)), addDays(parisDay(new Date(Math.max(...blocks.map((b) => b.end)))), 0));
+  for (const b of blocks) {
+    const clash = events.find((e) => e.kind === "protected" && e.start < b.end && e.end > b.start);
+    if (clash) throw new Error(`« ${b.title} » chevauche un événement protégé : régénère la proposition`);
+  }
+  const calendar = await blockCalendar();
+  const tasks = await db.select().from(schema.tasks).where(inArray(schema.tasks.id, blocks.map((b) => b.taskId).filter((x): x is string => Boolean(x))));
+  for (const b of blocks) {
+    const t = tasks.find((x) => x.id === b.taskId);
+    await createBlockEvent({ sourceId: calendar, title: b.title, start: b.start, end: b.end, taskId: b.taskId, effort: t?.effort ?? null, taskType: t ? (t.taskType ?? DEFAULT_TYPE) : null, estimateMin: Math.round((b.end - b.start) / MIN) }, reason);
+  }
+  return blocks.length;
 }
 
 /** C'est parti: brings a planned block forward so that it starts now (rounded down to five minutes), keeping its length. */

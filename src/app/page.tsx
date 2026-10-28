@@ -3,7 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { and, gte, lte } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { addDays, daysFrom, formatDayCompact, formatDayMonth, formatRelative, isoWeek, nowMs, parisDay, parisMinutes, weekdayName } from "@/lib/dates";
+import { addDays, daysFrom, formatDayCompact, formatDayMonth, formatRelative, isoWeek, isoWeekday, nowMs, parisDay, parisMinutes, weekdayName } from "@/lib/dates";
 import { eventsForDay, lastSync, loadContext, needsTriage, openTasks, upcomingExams, upcomingMilestones } from "@/lib/queries";
 import { Empty, Meteo, PageHeader, PillarDot, Section, TaskList } from "@/components/ui";
 import { SyncButton } from "@/components/sync-button";
@@ -14,6 +14,7 @@ import { MissedCard, NowStrip } from "@/components/blocks";
 import { DayReplanSheet, ReplanSheet } from "@/components/replan-sheet";
 import { Cap } from "@/components/cap";
 import { goalsOverview } from "@/goals";
+import { currentWeekLoad, loadReviewSettings } from "@/review";
 import { needsAttention } from "@/engine/goals";
 import { SignalChip } from "@/components/goal-panel";
 import { loadRitualSettings, minutesOf } from "@/rituals/settings";
@@ -30,7 +31,7 @@ async function Today({ searchParams }: PageProps<"/">) {
   await connection();
   const sp = await searchParams;
   const today = parisDay();
-  const [tasks, events, ctx, milestones, exams, synced, seasons, rituals, goals] = await Promise.all([
+  const [tasks, events, ctx, milestones, exams, synced, seasons, rituals, goals, weekLoad, reviewSettings] = await Promise.all([
     openTasks(),
     eventsForDay(today),
     loadContext(),
@@ -40,7 +41,10 @@ async function Today({ searchParams }: PageProps<"/">) {
     db.select().from(schema.seasons).where(and(lte(schema.seasons.startDate, today), gte(schema.seasons.endDate, today))),
     loadRitualSettings(),
     goalsOverview(),
+    currentWeekLoad(),
+    loadReviewSettings(),
   ]);
+  const reviewDue = isoWeekday(today) === reviewSettings.day && parisMinutes(new Date(nowMs())) >= minutesOf(reviewSettings.time);
   const stuck = [...goals.seasonGoals, ...goals.yearGoals].filter((g) => needsAttention(g.signals));
   // The clôture button shows from a quarter of an hour before its time.
   const clotureSoon = parisMinutes(new Date(nowMs())) >= minutesOf(rituals.clotureTime) - 15;
@@ -70,6 +74,11 @@ async function Today({ searchParams }: PageProps<"/">) {
           <Link href="/?replan=1" scroll={false} className="rounded-md border border-rule-strong px-3 py-1.5 text-sm hover:border-accent hover:text-accent">
             Replanifier ma journée
           </Link>
+          {reviewDue && (
+            <Link href="/revue" className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-paper hover:opacity-90">
+              Faire la revue
+            </Link>
+          )}
           {clotureSoon && (
             <Link href="/cloture" className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-paper hover:opacity-90">
               Faire la clôture
@@ -79,6 +88,11 @@ async function Today({ searchParams }: PageProps<"/">) {
         </div>
       </PageHeader>
 
+      {weekLoad.load.over && (
+        <p className="mb-6 border-l-2 border-warn pl-4 text-sm text-ink-soft">
+          {weekLoad.load.message} <Link href="/semaine" className="underline decoration-rule-strong underline-offset-4 hover:decoration-accent">Voir la semaine</Link>
+        </p>
+      )}
       <Cap />
       <NowStrip />
 

@@ -13,6 +13,8 @@ import { openTasks } from "@/lib/queries";
 import { fold } from "@/lib/text";
 import { requireAuth } from "@/lib/auth/guard";
 import { sendToAll } from "@/push";
+import { completeReview, confirmWeek, generateProposal, moveProposedBlock, refreshMetrics, saveReviewSettings, saveStep, setBlockExcluded, type CompleteResult } from "@/review";
+import type { ReviewData } from "@/db/schema";
 import { adjustPlan, closeDay, dismissCatchUp, resolveLeftover, startDay, type CloseInput } from "@/rituals";
 import { saveRitualSettings } from "@/rituals/settings";
 import { addGoalMilestone, addGoalTask, exportGoals, exportQuietly, linkGoal, saveGoal, saveVision, saveYear, setGoalProgress, setGoalStatus, setProjectExempt, unlinkGoal, type GoalInput, type LinkKind, type VisionInput, type YearInput } from "@/goals";
@@ -26,6 +28,7 @@ export async function syncNow() {
   await requireAuth();
   const report = await syncAll();
   await reconcileBlocks();
+  await refreshMetrics();
   refresh();
   return report;
 }
@@ -377,4 +380,54 @@ export async function exportGoalsAction(): Promise<ActionResult & { message?: st
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Une erreur est survenue" };
   }
+}
+
+// ---- La revue ---------------------------------------------------------------------
+
+export async function saveReviewStepAction(weekStart: string, patch: Partial<ReviewData>) {
+  await requireAuth();
+  return run(() => saveStep(weekStart, patch));
+}
+
+export async function generateProposalAction() {
+  await requireAuth();
+  return run(() => generateProposal());
+}
+
+export async function excludeBlockAction(weekStart: string, key: string, excluded: boolean) {
+  await requireAuth();
+  return run(() => setBlockExcluded(weekStart, key, excluded));
+}
+
+export async function moveBlockAction(weekStart: string, key: string) {
+  await requireAuth();
+  return run(() => moveProposedBlock(weekStart, key));
+}
+
+export async function confirmWeekAction(weekStart: string): Promise<ActionResult & { created?: number }> {
+  await requireAuth();
+  try {
+    const created = await confirmWeek(weekStart);
+    refresh();
+    return { ok: true, created };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Une erreur est survenue" };
+  }
+}
+
+export async function completeReviewAction(weekStart: string): Promise<ActionResult & { result?: CompleteResult }> {
+  await requireAuth();
+  try {
+    const result = await completeReview(weekStart);
+    refresh();
+    return { ok: true, result };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Une erreur est survenue" };
+  }
+}
+
+export async function saveReviewSettingsAction(formData: FormData) {
+  await requireAuth();
+  const get = (k: string) => String(formData.get(k) ?? "");
+  return run(() => saveReviewSettings({ day: Number(get("day")), time: get("time"), minBudget: Number(get("minBudget")) }));
 }

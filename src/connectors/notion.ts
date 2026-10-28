@@ -2,7 +2,7 @@ import { Client, isFullPage, isFullDataSource, iteratePaginatedAPI } from "@noti
 import type { PageObjectResponse } from "@notionhq/client";
 import type { Source, SourceConfig } from "@/db/schema";
 import { EFFORTS, parsePriorityName, priorityOptionName } from "@/engine/priority";
-import type { Connector, CreateResult, Discovered, NewTask, ProjectPatch, PullResult, PulledTask, TaskPatch, WriteResult } from "./types";
+import type { Connector, CreateResult, Discovered, NewTask, ProjectPatch, PullResult, PulledTask, ReviewPush, TaskPatch, WriteResult } from "./types";
 
 type PropSchema = {
   type: string;
@@ -346,6 +346,28 @@ async function createTask(source: Source, task: NewTask): Promise<CreateResult> 
   };
 }
 
+/** A review as a Notion page. Which property gets which field comes from `reviewMap` in the source config, by property type. */
+async function pushReview(source: Source, review: ReviewPush): Promise<CreateResult> {
+  const { n, dataSourceId, props, map } = await schemaFor(source);
+  const reviewMap = source.config.reviewMap ?? {};
+  const values: Record<string, string | number | null> = { title: review.title, week: review.week, ...review.fields };
+  const properties: Record<string, unknown> = {};
+  for (const [field, value] of Object.entries(values)) {
+    const name = reviewMap[field] ?? (field === "title" ? map.titleProp : undefined);
+    const schema = name ? props[name] : undefined;
+    if (!name || !schema || value === null || value === "") continue;
+    const text = String(value);
+    if (schema.type === "title") properties[name] = { title: [{ text: { content: text.slice(0, 2000) } }] };
+    else if (schema.type === "rich_text") properties[name] = { rich_text: [{ text: { content: text.slice(0, 2000) } }] };
+    else if (schema.type === "number" && Number.isFinite(Number(value))) properties[name] = { number: Number(value) };
+    else if (schema.type === "date") properties[name] = { date: { start: text } };
+    else if (schema.type === "select") properties[name] = { select: { name: text.slice(0, 100) } };
+  }
+  if (!Object.keys(properties).length) throw new Error("Aucune propriété Notion configurée pour la revue (reviewMap)");
+  const page = await n.pages.create({ parent: { type: "data_source_id", data_source_id: dataSourceId }, properties: properties as never });
+  return { externalId: page.id, url: "url" in page ? page.url : null, remoteUpdatedAt: "last_edited_time" in page ? page.last_edited_time : null, response: "pages.create (revue)" };
+}
+
 async function discover(): Promise<Discovered[]> {
   const n = notion();
   const found: Discovered[] = [];
@@ -369,6 +391,7 @@ export const notionConnector: Connector = {
   updateTask,
   updateProject,
   createTask,
+  push: pushReview,
   canWrite: (source, field) => Boolean(field === "priority" ? source.config.priorityProp : source.config.effortProp),
 };
 
