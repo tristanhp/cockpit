@@ -437,6 +437,8 @@ export type ReviewData = {
   threads?: Record<string, "plan" | "pause">;
   /** Answer to "qu'est-ce qui te permettrait de reprendre ?". */
   resume?: string;
+  /** Answer to the coach's question after two losses in a row. */
+  crisis?: string;
   /** One expected result per top-priority project, for the week ahead. */
   focus?: { projectId: string; name: string; result: string }[];
   /** Project id -> was last week's focus held. */
@@ -468,6 +470,79 @@ export const weeklyMetrics = sqliteTable("weekly_metrics", {
   computedAt: text("computed_at").notNull(),
 });
 
+// Each day is a match against that day's plan, derived by `src/engine/season.ts` and never edited.
+export const matches = sqliteTable(
+  "matches",
+  {
+    day: text("day").primaryKey(),
+    seasonId: text("season_id"),
+    plannedPoints: integer("planned_points").notNull(),
+    donePoints: integer("done_points").notNull(),
+    blocksPlanned: integer("blocks_planned").notNull(),
+    blocksKept: integer("blocks_kept").notNull(),
+    ritualsPlanned: integer("rituals_planned").notNull(),
+    ritualsDone: integer("rituals_done").notNull(),
+    mandatoryMissed: integer("mandatory_missed").notNull(),
+    goalsFor: integer("goals_for").notNull(),
+    goalsAgainst: integer("goals_against").notNull(),
+    ratio: real("ratio").notNull(),
+    result: text("result", { enum: ["V", "N", "D"] }).notNull(),
+    points: integer("points").notNull(),
+    cup: integer("cup", { mode: "boolean" }).notNull().default(false),
+    cupTitle: text("cup_title"),
+    computedAt: text("computed_at").notNull(),
+  },
+  (t) => [index("matches_season_idx").on(t.seasonId)],
+);
+
+// One row per season, recomputed from `matches`.
+export const seasonTable = sqliteTable("season_table", {
+  seasonId: text("season_id").primaryKey(),
+  played: integer("played").notNull().default(0),
+  points: integer("points").notNull().default(0),
+  wins: integer("wins").notNull().default(0),
+  draws: integer("draws").notNull().default(0),
+  losses: integer("losses").notNull().default(0),
+  goalsFor: integer("goals_for").notNull().default(0),
+  goalsAgainst: integer("goals_against").notNull().default(0),
+});
+
+// The end-of-season recap: best pillar, top-scoring project, longest run of wins, biggest comeback.
+export const awards = sqliteTable(
+  "awards",
+  {
+    id: text("id").primaryKey(),
+    seasonId: text("season_id").notNull(),
+    kind: text("kind").notNull(),
+    subject: text("subject").notNull(),
+    value: text("value").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("awards_season_kind_idx").on(t.seasonId, t.kind)],
+);
+
+// The player card's history: a rating from 0 to 99 per pillar and week.
+export const ratings = sqliteTable(
+  "ratings",
+  {
+    pillarId: text("pillar_id").notNull(),
+    weekStart: text("week_start").notNull(),
+    rating: integer("rating").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.pillarId, t.weekStart] })],
+);
+
+// Goal progress, once a week, for the progress lines on /saison.
+export const goalSnapshots = sqliteTable(
+  "goal_snapshots",
+  {
+    goalId: text("goal_id").notNull(),
+    weekStart: text("week_start").notNull(),
+    pct: integer("pct").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.goalId, t.weekStart] })],
+);
+
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value", { mode: "json" }).$type<unknown>(),
@@ -485,6 +560,9 @@ export type Credential = typeof credentials.$inferSelect;
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
 export type Block = typeof blocks.$inferSelect;
 export type TaskTypeRow = typeof taskTypes.$inferSelect;
+export type Match = typeof matches.$inferSelect;
+export type SeasonTableRow = typeof seasonTable.$inferSelect;
+export type Award = typeof awards.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
 export type WeeklyMetrics = typeof weeklyMetrics.$inferSelect;
 export type Vision = typeof vision.$inferSelect;

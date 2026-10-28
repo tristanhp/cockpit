@@ -13,6 +13,8 @@ import { openTasks } from "@/lib/queries";
 import { fold } from "@/lib/text";
 import { requireAuth } from "@/lib/auth/guard";
 import { sendToAll } from "@/push";
+import { loadSeasonSettings, recordMatch, refreshSeason, saveSeasonSettings } from "@/season";
+import { parisDay } from "@/lib/dates";
 import { completeReview, confirmWeek, generateProposal, moveProposedBlock, refreshMetrics, saveReviewSettings, saveStep, setBlockExcluded, type CompleteResult } from "@/review";
 import type { ReviewData } from "@/db/schema";
 import { adjustPlan, closeDay, dismissCatchUp, resolveLeftover, startDay, type CloseInput } from "@/rituals";
@@ -29,6 +31,7 @@ export async function syncNow() {
   const report = await syncAll();
   await reconcileBlocks();
   await refreshMetrics();
+  await refreshSeason();
   refresh();
   return report;
 }
@@ -280,9 +283,18 @@ export async function setInboxDue(id: string, dueDate: string | null) {
   return run(() => db.update(schema.inbox).set({ dueDate }).where(eq(schema.inbox.id, id)));
 }
 
-export async function closeDayAction(input: CloseInput) {
+/** Closes the day and derives its match. The result comes back only when the daily result is switched on. */
+export async function closeDayAction(input: CloseInput): Promise<ActionResult & { daily?: { result: "V" | "N" | "D"; goalsFor: number; goalsAgainst: number } }> {
   await requireAuth();
-  return run(() => closeDay(input));
+  try {
+    await closeDay(input);
+    const match = await recordMatch(parisDay());
+    refresh();
+    const show = (await loadSeasonSettings()).showDaily;
+    return { ok: true, daily: show && match ? { result: match.result, goalsFor: match.goalsFor, goalsAgainst: match.goalsAgainst } : undefined };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Une erreur est survenue" };
+  }
 }
 
 export async function adjustPlanAction(top3: string[], firstActionTaskId: string | null) {
@@ -430,4 +442,19 @@ export async function saveReviewSettingsAction(formData: FormData) {
   await requireAuth();
   const get = (k: string) => String(formData.get(k) ?? "");
   return run(() => saveReviewSettings({ day: Number(get("day")), time: get("time"), minBudget: Number(get("minBudget")) }));
+}
+
+// ---- La saison ---------------------------------------------------------------------
+
+export async function saveSeasonSettingsAction(formData: FormData) {
+  await requireAuth();
+  const pct = (k: string) => Number(String(formData.get(k) ?? "")) / 100;
+  return run(() =>
+    saveSeasonSettings({
+      winAt: pct("winAt"),
+      drawAt: pct("drawAt"),
+      cupTypes: String(formData.get("cupTypes") ?? "").split(",").map((t) => t.trim()).filter(Boolean),
+      showDaily: formData.get("showDaily") === "on",
+    }),
+  );
 }

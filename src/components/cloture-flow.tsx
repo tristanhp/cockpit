@@ -17,6 +17,7 @@ const field = "rounded-md border border-rule-strong bg-paper px-3 py-2 text-sm p
 export function ClotureFlow({ data }: { data: ClotureData }) {
   const [step, setStep] = useState(0);
   const [finished, setFinished] = useState(false);
+  const [daily, setDaily] = useState<{ result: "V" | "N" | "D"; goalsFor: number; goalsAgainst: number } | null>(null);
   const [pending, start] = useTransition();
   // The priorities and ticks stay `null` until touched, so a suggestion that changes after "Restes" is followed.
   const [picked, setPicked] = useState<string[] | null>(null);
@@ -44,6 +45,7 @@ export function ClotureFlow({ data }: { data: ClotureData }) {
     start(async () => {
       const res = await closeDayAction({ top3, firstActionTaskId: first, habits: Object.fromEntries(data.habits.map((h) => [h.id, habitDone(h.id, h.done)])) });
       if (!res.ok) return notify(res.error, "error");
+      setDaily(res.daily ?? null);
       setFinished(true);
     });
 
@@ -52,6 +54,7 @@ export function ClotureFlow({ data }: { data: ClotureData }) {
       <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-paper px-8 text-center">
         <p className="font-serif text-4xl italic leading-snug text-balance md:text-5xl">Écrans off.</p>
         <p className="mt-3 font-serif text-2xl italic text-ink-soft md:text-3xl">Le carnet papier t&apos;attend.</p>
+        {daily && <p className="mt-10 font-mono text-sm text-ink-faint">{{ V: "Victoire", N: "Match nul", D: "Défaite" }[daily.result]} · {daily.goalsFor}–{daily.goalsAgainst}</p>}
       </div>
     );
 
