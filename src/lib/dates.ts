@@ -3,8 +3,22 @@ export const TZ = "Europe/Paris";
 
 const dayFmt = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" });
 
+/**
+ * The current instant. `COCKPIT_NOW` (an ISO instant, or a Paris wall time "YYYY-MM-DDTHH:mm") moves the
+ * clock, but only in demo mode and in tests, so the next morning's cap can be played back at will.
+ */
+export function nowMs(): number {
+  const forced = process.env.COCKPIT_NOW;
+  if (forced && (process.env.COCKPIT_DEMO === "1" || process.env.NODE_ENV === "test")) {
+    const wall = forced.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})$/);
+    const t = wall ? parisInstant(wall[1], Number(wall[2]) * 60 + Number(wall[3])) : Date.parse(forced);
+    if (Number.isFinite(t)) return t;
+  }
+  return Date.now();
+}
+
 /** YYYY-MM-DD in Paris time. Accepts a Date or an ISO string; a bare date string is returned as is. */
-export function parisDay(d: Date | string = new Date()): string {
+export function parisDay(d: Date | string = new Date(nowMs())): string {
   if (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
   return dayFmt.format(typeof d === "string" ? new Date(d) : d);
 }

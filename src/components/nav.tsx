@@ -17,6 +17,8 @@ const LINKS = [
 const MORE = [
   { href: "/cockpit", label: "Cockpit", icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm3.5 5.5-2 5-5 2 2-5z" },
   { href: "/semaine", label: "Semaine", icon: "M4 6h16M4 12h16M4 18h16M9 4v4M15 10v4M8 16v4" },
+  { href: "/habitudes", label: "Habitudes", icon: "M5 12l4 4 10-10M5 5h6M5 19h6" },
+  { href: "/cloture", label: "Clôture", icon: "M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" },
   { href: "/inbox", label: "Inbox", icon: "M4 13l2-7h12l2 7M4 13v5h16v-5M4 13h4l1 2h6l1-2h4" },
   { href: "/reglages", label: "Réglages", icon: "M4 7h10M18 7h2M4 17h4M12 17h8M14 5v4M8 15v4" },
 ];

@@ -55,7 +55,7 @@ export function dueNotifications(now: number, state: NotifyState, settings: Noti
   const weekend = isoWeekday(day) >= 6;
   if (scheduled(weekend ? settings.capWeekend : settings.capWeekday)) push({ kind: "cap", key: `cap:${day}`, title: "Le cap du jour", body: "Ta première action et tes trois priorités t'attendent.", url: "/" });
   // The clôture has a hard stop: once screens-off is due, it is too late.
-  if (scheduled(settings.clotureTime, Math.min(settings.catchUpMin, minutesOf(settings.screensOffTime) - minutesOf(settings.clotureTime)))) push({ kind: "cloture", key: `cloture:${day}`, title: "La clôture", body: "Trois minutes pour clore la journée et préparer demain.", url: "/" });
+  if (scheduled(settings.clotureTime, Math.min(settings.catchUpMin, minutesOf(settings.screensOffTime) - minutesOf(settings.clotureTime)))) push({ kind: "cloture", key: `cloture:${day}`, title: "La clôture", body: "Trois minutes pour clore la journée et préparer demain.", url: "/cloture" });
   if (scheduled(settings.screensOffTime)) push({ kind: "screens-off", key: `screens-off:${day}`, title: "Écrans éteints", body: "Il est l'heure de poser les écrans.", url: "/" });
 
   // Daytime only, once a day per task.

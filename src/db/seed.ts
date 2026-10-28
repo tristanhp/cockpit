@@ -19,6 +19,7 @@ type SeedFile = {
     config?: SourceConfig;
     enabled?: boolean;
   }[];
+  habits?: { id?: string; name: string; targetPct?: number; protected?: boolean }[];
   calendars: { name: string; calendarId: string; calendarRole: SourceConfig["calendarRole"]; enabled?: boolean }[];
 };
 
@@ -56,6 +57,12 @@ async function main() {
     .insert(schema.sources)
     .values([...seed.sources.map((s) => ({ ...s, config: s.config ?? {}, enabled: s.enabled ?? true })), ...calendars])
     .onConflictDoNothing();
+
+  if (seed.habits?.length)
+    await db
+      .insert(schema.habits)
+      .values(seed.habits.map((h, i) => ({ id: h.id ?? slug(h.name), name: h.name, targetPct: h.targetPct ?? 80, protected: h.protected ?? false, sortOrder: i })))
+      .onConflictDoNothing();
 
   console.log(`Seed OK (${path})`);
 }

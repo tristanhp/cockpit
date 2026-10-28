@@ -2,6 +2,7 @@ import { gte, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { DEFAULT_NOTIFY, type NotifySettings, type NotifyState } from "@/engine/notifications";
 import { addDays, parisDay } from "@/lib/dates";
+import { loadRitualSettings } from "@/rituals/settings";
 
 /** Reads the database into what `dueNotifications` needs. */
 export async function loadNotifyState(now: number): Promise<NotifyState> {
@@ -31,9 +32,17 @@ export async function loadNotifyState(now: number): Promise<NotifyState> {
   };
 }
 
+/** The cap, clôture and hard-stop times come from the ritual settings; the rest from "notifications". */
 export async function loadNotifySettings(): Promise<NotifySettings> {
-  const row = await db.query.settings.findFirst({ where: (s, { eq }) => eq(s.key, "notifications") });
-  return { ...DEFAULT_NOTIFY, ...((row?.value as Partial<NotifySettings>) ?? {}) };
+  const [row, rituals] = await Promise.all([db.query.settings.findFirst({ where: (s, { eq }) => eq(s.key, "notifications") }), loadRitualSettings()]);
+  return {
+    ...DEFAULT_NOTIFY,
+    ...((row?.value as Partial<NotifySettings>) ?? {}),
+    capWeekday: rituals.capWeekday,
+    capWeekend: rituals.capWeekend,
+    clotureTime: rituals.clotureTime,
+    screensOffTime: rituals.hardStop,
+  };
 }
 
 export const recordSent = (n: { key: string; kind: string }) =>

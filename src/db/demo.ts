@@ -2,7 +2,8 @@
 // with every date relative to today so the screens always look current.
 // Nothing here comes from a real account.
 import { db, schema } from "./index";
-import { addDays, parisDay } from "@/lib/dates";
+import { addDays, isoWeekday, parisDay } from "@/lib/dates";
+import { buildSnapshot, weekStart } from "@/engine/cloture";
 import { computePriority, projectScaleFromLevel } from "@/engine/priority";
 
 const today = parisDay();
@@ -221,6 +222,58 @@ async function main() {
     { id: "gcal:demo-asso", kind: "gcal", externalRef: "demo-asso", name: "Club photo · agenda", foundAt: now },
   ]);
   await db.insert(schema.settings).values({ key: "last_sync", value: now });
+
+  // Habits and three weeks of logs: one habit has missed the last two full weeks ("jamais deux fois de suite").
+  await db.insert(schema.habits).values([
+    { id: "sommeil-minuit", name: "Au lit avant minuit", protected: true, sortOrder: 0 },
+    { id: "lecture", name: "Lecture 20 minutes", sortOrder: 1 },
+    { id: "etirements", name: "Étirements", sortOrder: 2 },
+  ]);
+  const week0 = weekStart(today);
+  const pattern: Record<string, (week: number, dow: number) => boolean> = {
+    "sommeil-minuit": (w, d) => (w === -1 ? d !== 5 && d !== 6 : d !== 6),
+    lecture: (_w, d) => d !== 4,
+    etirements: (w, d) => (w === -3 ? d <= 5 : d === 1 || d === 4),
+  };
+  const logs: (typeof schema.habitLogs.$inferInsert)[] = [];
+  for (let n = -21; n < 0; n++) {
+    const d = addDays(week0, n);
+    if (d >= today) continue;
+    const week = Math.floor(n / 7);
+    for (const [habitId, done] of Object.entries(pattern)) logs.push({ habitId, day: d, done: done(week, isoWeekday(d)) });
+  }
+  // Days of the current week before today are logged too.
+  for (let n = 0; addDays(week0, n) < today; n++) {
+    const d = addDays(week0, n);
+    for (const [habitId, done] of Object.entries(pattern)) logs.push({ habitId, day: d, done: done(0, isoWeekday(d)) });
+  }
+  await db.insert(schema.habitLogs).values(logs).onConflictDoNothing();
+
+  // Yesterday's clôture, with the state of the evening: since then a ticket arrived, a due date moved
+  // and a training block slid into a class (the cap's "Depuis hier soir").
+  const taskRows = await db.select().from(schema.tasks);
+  const eventRows = await db.select().from(schema.events);
+  const writable = new Set(["gcal-travail"]);
+  const evening = buildSnapshot({
+    from: day(-1),
+    days: 7,
+    tasks: taskRows
+      .filter((t) => t.id !== "linear-covoit:t13")
+      .map((t) => ({ id: t.id, title: t.title, due: t.id === "notion-taches:t4" && t.dueDate ? addDays(t.dueDate, 1) : t.dueDate })),
+    events: eventRows
+      .filter((e) => !e.allDay)
+      .map((e) => {
+        const moved = e.id === "gcal-travail:b4";
+        return {
+          id: e.id, title: e.title, kind: writable.has(e.sourceId) ? ("block" as const) : e.sourceId === "gcal-principal" ? ("avoided" as const) : ("protected" as const),
+          start: moved ? at(1, "08:00") : e.start, end: moved ? at(1, "09:30") : e.end,
+        };
+      }),
+  });
+  await db.insert(schema.dayPlans).values([
+    { day: day(-1), closedAt: at(-1, "22:50"), snapshot: evening, top3: [] },
+    { day: today, top3: ["notion-cours:t0", "notion-cours:t2", "linear-covoit:t3"], firstActionTaskId: "linear-covoit:t3" },
+  ]);
 
   console.log(`Demo data ready for ${today}`);
 }

@@ -22,6 +22,11 @@
     { "id": "notion-taches", "kind": "notion", "role": "tasks", "name": "Tâches", "externalRef": "<notion-database-or-page-id>" },
     { "id": "linear-team", "kind": "linear", "role": "tasks", "name": "Linear · Équipe", "externalRef": "ENG", "config": { "teamKey": "ENG" } }
   ],
+  "habits": [
+    { "name": "Lecture 20 minutes" },
+    { "name": "Étirements" },
+    { "name": "Au lit avant minuit", "protected": true }
+  ],
   "calendars": [
     { "name": "Principal", "calendarId": "primary", "calendarRole": "engagement" },
     { "name": "Jours fériés", "calendarId": "fr.french#holiday@group.v.calendar.google.com", "calendarRole": "engagement" }

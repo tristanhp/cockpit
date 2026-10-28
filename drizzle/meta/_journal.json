@@ -8,6 +8,13 @@
       "when": 1793059908359,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793191915961,
+      "tag": "0001_rituals",
+      "breakpoints": true
     }
   ]
 }

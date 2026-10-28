@@ -87,7 +87,7 @@ Repository → Settings → Secrets and variables → Actions → New repository
 
 `.github/workflows/cron.yml` then calls `/api/cron/tick` every 5 minutes. The job fails visibly (red run, email from GitHub) when the call does not return 2xx or a secret is missing. Start it once by hand from the Actions tab (**Run workflow**) to check. GitHub may delay scheduled runs by a few minutes at busy times; the notifications catch up for 30 minutes (15 for the clôture, which stops at 23:00).
 
-What a tick sends: block-end check-in (only while the linked task is still open), the 22:45 clôture, 23:00 screens off, the morning cap (07:30 weekdays, 09:30 weekends), and a deadline warning for an Urgent or Haute task due within two days with no block before it. Each notification goes out once.
+What a tick sends: block-end check-in (only while the linked task is still open), the clôture (22:45 by default, opens `/cloture`), screens off (23:00), the morning cap (07:30 weekdays, 09:30 weekends, opens Aujourd'hui); all four times are editable in Réglages → Rituels, and a deadline warning for an Urgent or Haute task due within two days with no block before it. Each notification goes out once.
 
 ## 7. iOS Shortcut for capture
 
