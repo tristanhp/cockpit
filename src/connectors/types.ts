@@ -92,6 +92,9 @@ export type NewTask = {
   projectName?: string | null;
 };
 
+/** A finished review, as flat fields. `source.config.reviewMap` says which property receives which field. */
+export type ReviewPush = { title: string; week: string; fields: Record<string, string | number | null> };
+
 /** What a write returns: the source's own edit time and a short trace for the change log. */
 export type WriteResult = { remoteUpdatedAt: string | null; response: string; newState?: { raw: string; status: "todo" | "doing" | "done" } };
 export type CreateResult = { externalId: string; identifier?: string | null; url?: string | null; remoteUpdatedAt: string | null; response: string };
@@ -107,6 +110,8 @@ export interface Connector {
   updateTask?(source: Source, externalId: string, patch: TaskPatch): Promise<WriteResult>;
   updateProject?(source: Source, externalId: string, patch: ProjectPatch): Promise<WriteResult>;
   createTask?(source: Source, task: NewTask): Promise<CreateResult>;
+  /** Mirrors a finished review into a source with role `reviews`. */
+  push?(source: Source, review: ReviewPush): Promise<CreateResult>;
   /** Whether this source has a property for the field, or must keep it Cockpit-side. */
   canWrite?(source: Source, field: "priority" | "effort"): boolean;
 }

@@ -24,6 +24,14 @@ describe("scheduled notifications", () => {
     assert.deepEqual(kinds(dueNotifications(at("2026-11-02", "07:32"), empty(), custom)), []);
     assert.deepEqual(kinds(dueNotifications(at("2026-11-02", "22:20"), empty(), custom)), ["cloture"]);
   });
+  it("sends the revue on the review day, at the configured time, opening /revue", () => {
+    // 2026-11-01 is a Sunday.
+    const [n] = dueNotifications(at("2026-11-01", "19:34"), empty());
+    assert.equal(n.kind, "revue");
+    assert.equal(n.url, "/revue");
+    assert.deepEqual(kinds(dueNotifications(at("2026-11-02", "19:34"), empty())), []);
+    assert.deepEqual(kinds(dueNotifications(at("2026-11-02", "18:05"), empty(), { ...DEFAULT_NOTIFY, reviewDay: 1, reviewTime: "18:00" })), ["revue"]);
+  });
   it("sends nothing at a quiet hour", () => assert.deepEqual(dueNotifications(at("2026-11-02", "15:12"), empty()), []));
   it("catches up a missed cron run within the window", () => assert.deepEqual(kinds(dueNotifications(at("2026-11-02", "22:58"), empty())), ["cloture"]));
   it("does not send a clôture hours late", () => assert.deepEqual(dueNotifications(at("2026-11-02", "21:00"), empty()), []));

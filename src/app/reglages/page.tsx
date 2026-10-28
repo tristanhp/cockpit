@@ -12,6 +12,8 @@ import { UndoButton } from "@/components/undo-button";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { RitualTimes } from "@/components/ritual-times";
 import { ExportGoals } from "@/components/export-goals";
+import { ReviewSettingsForm } from "@/components/review-settings";
+import { loadReviewSettings } from "@/review";
 import { loadRitualSettings } from "@/rituals/settings";
 import { SecurityPanel } from "@/components/security-panel";
 import { authDisabled } from "@/lib/auth/session";
@@ -33,7 +35,7 @@ const ghostButton = "rounded-md border border-rule-strong px-2.5 py-1 text-xs ho
 
 async function Settings() {
   await connection();
-  const [passkeys, devices, rituals] = await Promise.all([db.select().from(schema.credentials), db.select().from(schema.pushSubscriptions), loadRitualSettings()]);
+  const [passkeys, devices, rituals, reviewSettings] = await Promise.all([db.select().from(schema.credentials), db.select().from(schema.pushSubscriptions), loadRitualSettings(), loadReviewSettings()]);
   const [sources, discoveries, projects, journal, rules] = await Promise.all([
     db.select().from(schema.sources),
     db.select().from(schema.discoveries).where(eq(schema.discoveries.dismissed, false)),
@@ -187,6 +189,10 @@ async function Settings() {
 
           <Section title="Rituels" aside="le cap et la clôture">
             <RitualTimes settings={rituals} />
+          </Section>
+
+          <Section title="La revue" aside="jour, heure et budget">
+            <ReviewSettingsForm settings={reviewSettings} />
           </Section>
 
           <Section title="Export des objectifs" aside="Markdown pour le coffre">

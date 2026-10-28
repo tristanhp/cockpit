@@ -59,7 +59,7 @@ npx web-push generate-vapid-keys    # VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | step 2 |
 | `VAPID_SUBJECT` | `mailto:you@example.com`: who the push services can contact |
 
-Do **not** set `COCKPIT_DEMO` or `COCKPIT_AUTH=off` in production: either one switches authentication off. `VAULT_INBOX_PATH` (ideas) and `VAULT_GOALS_PATH` (the vision and one file per season, written after each edit and from the button in Réglages) only make sense on your own machine because they write Markdown files; leave them unset on Vercel and nothing is exported.
+Do **not** set `COCKPIT_DEMO` or `COCKPIT_AUTH=off` in production: either one switches authentication off. `VAULT_INBOX_PATH` (ideas) and `VAULT_GOALS_PATH` (the vision and one file per season, written after each edit and from the button in Réglages), `VAULT_REVIEWS_PATH` (one Markdown file per finished review) only make sense on your own machine because they write Markdown files; leave them unset on Vercel and nothing is exported.
 
 Google: in the OAuth client, add `https://<your-app>/api/google/callback` to the authorised redirect URIs. Then open Réglages and press **Connecter** (or **Reconnecter pour autoriser l'écriture** if the button says so).
 
@@ -87,7 +87,7 @@ Repository → Settings → Secrets and variables → Actions → New repository
 
 `.github/workflows/cron.yml` then calls `/api/cron/tick` every 5 minutes. The job fails visibly (red run, email from GitHub) when the call does not return 2xx or a secret is missing. Start it once by hand from the Actions tab (**Run workflow**) to check. GitHub may delay scheduled runs by a few minutes at busy times; the notifications catch up for 30 minutes (15 for the clôture, which stops at 23:00).
 
-What a tick sends: block-end check-in (only while the linked task is still open), the clôture (22:45 by default, opens `/cloture`), screens off (23:00), the morning cap (07:30 weekdays, 09:30 weekends, opens Aujourd'hui); all four times are editable in Réglages → Rituels, and a deadline warning for an Urgent or Haute task due within two days with no block before it. Each notification goes out once.
+What a tick sends: block-end check-in (only while the linked task is still open), the clôture (22:45 by default, opens `/cloture`), screens off (23:00), the morning cap (07:30 weekdays, 09:30 weekends, opens Aujourd'hui); all four times are editable in Réglages → Rituels, and a deadline warning for an Urgent or Haute task due within two days with no block before it, and the weekly review at its day and time (Sunday 19:30 by default, editable in Réglages → La revue; the tick also prepares the draft). Each notification goes out once.
 
 ## 7. iOS Shortcut for capture
 

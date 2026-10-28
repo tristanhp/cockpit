@@ -3,13 +3,16 @@ import { addDays, isoWeekday, parisDay, parisMinutes } from "@/lib/dates";
 // Which notifications are due right now. Pure: the tick route loads the state, sends what
 // this returns, and records each key in `notifications_sent` so nothing goes out twice.
 
-export type NotifyKind = "block-end" | "cloture" | "screens-off" | "cap" | "deadline";
+export type NotifyKind = "block-end" | "cloture" | "screens-off" | "cap" | "deadline" | "revue";
 
 export type NotifySettings = {
   clotureTime: string;
   screensOffTime: string;
   capWeekday: string;
   capWeekend: string;
+  /** ISO weekday (1 Monday … 7 Sunday) and time of the weekly review. */
+  reviewDay: number;
+  reviewTime: string;
   /** A scheduled notification still goes out this many minutes late (a missed cron run). */
   catchUpMin: number;
   /** A block-end check-in is still relevant this long after the block ended. */
@@ -19,7 +22,7 @@ export type NotifySettings = {
 };
 
 export const DEFAULT_NOTIFY: NotifySettings = {
-  clotureTime: "22:45", screensOffTime: "23:00", capWeekday: "07:30", capWeekend: "09:30", catchUpMin: 30, blockEndWindowMin: 60, deadlineDays: 2,
+  clotureTime: "22:45", screensOffTime: "23:00", capWeekday: "07:30", capWeekend: "09:30", reviewDay: 7, reviewTime: "19:30", catchUpMin: 30, blockEndWindowMin: 60, deadlineDays: 2,
 };
 
 export type NotifyState = {
@@ -57,6 +60,8 @@ export function dueNotifications(now: number, state: NotifyState, settings: Noti
   // The clôture has a hard stop: once screens-off is due, it is too late.
   if (scheduled(settings.clotureTime, Math.min(settings.catchUpMin, minutesOf(settings.screensOffTime) - minutesOf(settings.clotureTime)))) push({ kind: "cloture", key: `cloture:${day}`, title: "La clôture", body: "Trois minutes pour clore la journée et préparer demain.", url: "/cloture" });
   if (scheduled(settings.screensOffTime)) push({ kind: "screens-off", key: `screens-off:${day}`, title: "Écrans éteints", body: "Il est l'heure de poser les écrans.", url: "/" });
+
+  if (isoWeekday(day) === settings.reviewDay && scheduled(settings.reviewTime)) push({ kind: "revue", key: `revue:${day}`, title: "La revue de la semaine", body: "Dix minutes pour faire le point et proposer la semaine à venir.", url: "/revue" });
 
   // Daytime only, once a day per task.
   if (minute >= 9 * 60 && minute < 20 * 60) {

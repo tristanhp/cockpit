@@ -3,6 +3,7 @@ import { db, schema } from "@/db";
 import { DEFAULT_NOTIFY, type NotifySettings, type NotifyState } from "@/engine/notifications";
 import { addDays, parisDay } from "@/lib/dates";
 import { loadRitualSettings } from "@/rituals/settings";
+import { loadReviewSettings } from "@/review";
 
 /** Reads the database into what `dueNotifications` needs. */
 export async function loadNotifyState(now: number): Promise<NotifyState> {
@@ -34,7 +35,7 @@ export async function loadNotifyState(now: number): Promise<NotifyState> {
 
 /** The cap, clôture and hard-stop times come from the ritual settings; the rest from "notifications". */
 export async function loadNotifySettings(): Promise<NotifySettings> {
-  const [row, rituals] = await Promise.all([db.query.settings.findFirst({ where: (s, { eq }) => eq(s.key, "notifications") }), loadRitualSettings()]);
+  const [row, rituals, review] = await Promise.all([db.query.settings.findFirst({ where: (s, { eq }) => eq(s.key, "notifications") }), loadRitualSettings(), loadReviewSettings()]);
   return {
     ...DEFAULT_NOTIFY,
     ...((row?.value as Partial<NotifySettings>) ?? {}),
@@ -42,6 +43,8 @@ export async function loadNotifySettings(): Promise<NotifySettings> {
     capWeekend: rituals.capWeekend,
     clotureTime: rituals.clotureTime,
     screensOffTime: rituals.hardStop,
+    reviewDay: review.day,
+    reviewTime: review.time,
   };
 }
 
