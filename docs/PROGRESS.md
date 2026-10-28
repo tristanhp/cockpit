@@ -26,7 +26,7 @@ Things only the owner can do, collected from merged slices. Tick them off here.
 
 - [x] S4: deploy end to end (Turso, Vercel, `APP_URL`), passkey enrolled, setup token removed, cron green, push works on phone and laptop.
 - [ ] S4: one real block-end check-in and the 22:45 clôture notification have arrived.
-- [ ] S4: second passkey added (laptop) so losing the phone does not lock you out.
-- [ ] S2: write-back checked with real Notion and Linear (done and reopen, priority and due date, capture filed in the right base, undo from the journal).
-- [ ] S3: calendar writes checked with real Google Calendar (block created and moved, sport and class calendars never written to).
+- [x] S4: second passkey added (laptop) so losing the phone does not lock you out.
+- [x] S2: write-back checked with real Notion and Linear (done and reopen, priority and due date, capture filed in the right base, undo from the journal).
+- [x] S3: calendar writes checked with real Google Calendar (block created and moved, sport and class calendars never written to).
 - [ ] Overlapping blocks after a replan were seen once in the demo and could not be reproduced headlessly; report the click sequence if it happens on real data.
