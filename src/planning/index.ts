@@ -5,7 +5,7 @@ import {
   DEFAULT_SETTINGS, MIN, durationFor, freeSlots, isMandatory, kindOfRole, learnMinutesPerPoint, linkedTaskId, placeSplit, placeTask, reconcileBlockStatus, replanDay, canWriteCalendar,
   type BusyEvent, type PlanItem, type PlanningSettings, type Placement, type ReplanResult, type Slot, type TaskType,
 } from "@/engine/planning";
-import { addDays, parisDay, parisInstant } from "@/lib/dates";
+import { addDays, isoWeekday, nowMs, parisDay, parisInstant } from "@/lib/dates";
 import { fold } from "@/lib/text";
 import { createBlockEvent, logBlock, moveBlockEvent, removeBlock } from "@/writeback/blocks";
 
@@ -69,7 +69,7 @@ const clampNow = (now: number) => Math.ceil(now / (15 * MIN)) * 15 * MIN;
 export type Option = { key: "auto" | "tonight" | "tomorrow" | "split" | "drop"; label: string; placements: Placement[]; note?: string };
 
 /** The replan sheet's choices with their concrete slots; an option with no placement cannot be picked. */
-export async function replanOptions(blockId: string, now = Date.now()): Promise<{ block: Block; task: Task | null; options: Option[] } | null> {
+export async function replanOptions(blockId: string, now = nowMs()): Promise<{ block: Block; task: Task | null; options: Option[] } | null> {
   const block = await db.query.blocks.findFirst({ where: eq(schema.blocks.id, blockId) });
   if (!block) return null;
   const settings = await loadSettings();
@@ -116,8 +116,62 @@ export async function applyReplanOption(blockId: string, key: Option["key"]): Pr
   }
 }
 
+export type LeftoverChoice = "tomorrow" | "later" | "drop";
+
+/** Best slot for a block's task from `fromDay` on, optionally no later than the end of `untilDay`. */
+async function placeFrom(block: Block, fromDay: string, untilDay: string | null, now: number): Promise<Placement | null> {
+  const settings = await loadSettings();
+  const info = block.taskId ? await taskInfo(block.taskId, settings) : null;
+  const minutes = Math.max(15, Math.round((Date.parse(block.end) - Date.parse(block.start)) / MIN));
+  const today = parisDay(new Date(now));
+  const events = await busyEvents(today, addDays(today, 8), new Set([block.id]));
+  const slots = freeSlots(events, daysFrom(today, 8), settings);
+  const neighbours = (await db.select().from(schema.blocks).where(ne(schema.blocks.status, "dropped"))).filter((b) => b.id !== block.id).map((b) => ({ start: Date.parse(b.start), end: Date.parse(b.end) }));
+  return placeTask({ minutes, priority: info?.task.priority ?? 3, dueDate: info?.task.dueDate ?? null }, slots, {
+    now: clampNow(now), neighbours, notBefore: parisInstant(fromDay, settings.startMin), notAfter: untilDay ? parisInstant(untilDay, settings.endMin) : undefined,
+  });
+}
+
+/** The clôture's "Restes" for a missed block: tomorrow, later this week (Cockpit chooses) or dropped. */
+export async function applyLeftover(blockId: string, choice: LeftoverChoice, now = nowMs()): Promise<void> {
+  if (choice === "drop") return applyReplanOption(blockId, "drop");
+  const block = await db.query.blocks.findFirst({ where: eq(schema.blocks.id, blockId) });
+  if (!block) throw new Error("Bloc introuvable");
+  const today = parisDay(new Date(now));
+  const tomorrow = addDays(today, 1);
+  const weekEnd = addDays(today, 7 - isoWeekday(today));
+  const placement =
+    choice === "tomorrow"
+      ? await placeFrom(block, tomorrow, null, now)
+      : ((await placeFrom(block, addDays(today, 2), weekEnd, now)) ?? (await placeFrom(block, tomorrow, null, now)));
+  if (!placement) throw new Error("Aucun créneau libre cette semaine");
+  await moveBlockEvent(block, placement.start, placement.end, choice === "tomorrow" ? "Clôture : demain" : "Clôture : plus tard cette semaine");
+}
+
+/** C'est parti: brings a planned block forward so that it starts now (rounded down to five minutes), keeping its length. */
+export async function moveBlockToNow(blockId: string, now = nowMs()): Promise<void> {
+  const block = await db.query.blocks.findFirst({ where: eq(schema.blocks.id, blockId) });
+  if (!block) throw new Error("Bloc introuvable");
+  const start = Math.floor(now / (5 * MIN)) * 5 * MIN;
+  const length = Date.parse(block.end) - Date.parse(block.start);
+  const events = await busyEvents(parisDay(new Date(now)), parisDay(new Date(now)), new Set([block.id]));
+  if (events.some((e) => e.kind === "protected" && e.start < start + length && e.end > start)) throw new Error("un événement protégé occupe ce créneau");
+  await moveBlockEvent(block, start, start + length, "C'est parti : le bloc commence maintenant");
+}
+
+/** The day to move a late task without a block to: tomorrow, or the day of the best slot from the day after. */
+export async function dayForLater(taskId: string, today: string, now = nowMs()): Promise<string> {
+  const settings = await loadSettings();
+  const info = await taskInfo(taskId, settings);
+  const fallback = addDays(today, 2);
+  if (!info) return fallback;
+  const events = await busyEvents(today, addDays(today, 8));
+  const p = placeTask({ minutes: info.minutes, priority: info.task.priority, dueDate: null }, freeSlots(events, daysFrom(today, 8), settings), { now: clampNow(now), notBefore: parisInstant(fallback, settings.startMin) });
+  return p ? parisDay(new Date(p.start)) : fallback;
+}
+
 /** Puts a task on the calendar: the best slot, or the one the user typed (Paris local "YYYY-MM-DDTHH:mm"). */
-export async function scheduleTask(taskId: string, manualStart?: string, now = Date.now()): Promise<Block> {
+export async function scheduleTask(taskId: string, manualStart?: string, now = nowMs()): Promise<Block> {
   const settings = await loadSettings();
   const info = await taskInfo(taskId, settings);
   if (!info) throw new Error("Tâche introuvable");
@@ -150,7 +204,7 @@ export async function scheduleTask(taskId: string, manualStart?: string, now = D
 
 export type DayPlan = { day: string; before: PlanItem[]; result: ReplanResult };
 
-export async function proposeDayReplan(day = parisDay(), now = Date.now()): Promise<DayPlan> {
+export async function proposeDayReplan(day = parisDay(), now = nowMs()): Promise<DayPlan> {
   const settings = await loadSettings();
   const all = await db.select().from(schema.blocks).where(inArray(schema.blocks.status, ["planned", "proposed", "missed"]));
   const dayBlocks = all.filter((b) => parisDay(b.start) === day && b.taskId);
@@ -205,7 +259,7 @@ export async function applyDayReplan(day = parisDay()): Promise<{ moved: number;
  * Calendar is respected: its times follow the event and Cockpit never moves it back.
  * Then each block is reconciled against its task, and learning runs for blocks that ended done.
  */
-export async function reconcileBlocks(now = Date.now()): Promise<void> {
+export async function reconcileBlocks(now = nowMs()): Promise<void> {
   const settings = await loadSettings();
   const sources = (await db.select().from(schema.sources).where(eq(schema.sources.enabled, true))).filter((s) => s.kind === "gcal" && canWriteCalendar(s.config.calendarRole));
   if (!sources.length) return;
@@ -282,7 +336,7 @@ export async function missedBlocks(): Promise<BlockView[]> {
   return views((await db.select().from(schema.blocks).where(eq(schema.blocks.status, "missed"))).sort((a, b) => a.start.localeCompare(b.start)));
 }
 
-export async function nowAndNext(now = Date.now()): Promise<{ current: BlockView | null; next: BlockView | null; minutesLeft: number }> {
+export async function nowAndNext(now = nowMs()): Promise<{ current: BlockView | null; next: BlockView | null; minutesLeft: number }> {
   const live = (await db.select().from(schema.blocks).where(inArray(schema.blocks.status, ["planned", "proposed"]))).sort((a, b) => a.start.localeCompare(b.start));
   const current = live.find((b) => Date.parse(b.start) <= now && now < Date.parse(b.end)) ?? null;
   const next = live.find((b) => Date.parse(b.start) > now && b.id !== current?.id) ?? null;

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, index, primaryKey } from "drizzle-orm/sqlite-core";
 
 // Everything that shapes the system (piliers, niveaux, saisons, sources) is data,
 // so that a new project, semester or tool never requires a code change.
@@ -310,6 +310,50 @@ export const notificationsSent = sqliteTable("notifications_sent", {
   sentAt: text("sent_at").notNull(),
 });
 
+// Habits are data: a new one never needs code. Protected habits are never traded away.
+export const habits = sqliteTable("habits", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  targetPct: integer("target_pct").notNull().default(80),
+  protected: integer("protected", { mode: "boolean" }).notNull().default(false),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+// One row per habit and day, written by the clôture.
+export const habitLogs = sqliteTable(
+  "habit_logs",
+  {
+    habitId: text("habit_id").notNull(),
+    day: text("day").notNull(),
+    done: integer("done", { mode: "boolean" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.habitId, t.day] }), index("habit_logs_day_idx").on(t.day)],
+);
+
+// The plan of a day. `firstActionTaskId` and `top3` are what the clôture of the evening before chose
+// for this day; `closedAt` and `snapshot` are written when this day itself is closed; `startedAt` is when
+// "C'est parti" was pressed on the cap.
+export const dayPlans = sqliteTable("day_plans", {
+  day: text("day").primaryKey(),
+  firstActionTaskId: text("first_action_task_id"),
+  top3: text("top3", { mode: "json" }).$type<string[]>().notNull().default([]),
+  closedAt: text("closed_at"),
+  snapshot: text("snapshot", { mode: "json" }).$type<DaySnapshot>(),
+  startedAt: text("started_at"),
+  // When the one-minute catch-up of a skipped clôture was dealt with (or dismissed) on this morning.
+  catchUpAt: text("catch_up_at"),
+});
+
+/** Taken at closing, to show what changed overnight. Built and compared by `src/engine/cloture.ts`. */
+export type DaySnapshot = {
+  from: string;
+  to: string;
+  tasks: { id: string; title: string; due: string | null }[];
+  events: { id: string; title: string; start: string; end: string; kind: "block" | "protected" | "avoided" | "busy" }[];
+  clashes: string[];
+};
+
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value", { mode: "json" }).$type<unknown>(),
@@ -327,5 +371,8 @@ export type Credential = typeof credentials.$inferSelect;
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
 export type Block = typeof blocks.$inferSelect;
 export type TaskTypeRow = typeof taskTypes.$inferSelect;
+export type Habit = typeof habits.$inferSelect;
+export type HabitLog = typeof habitLogs.$inferSelect;
+export type DayPlanRow = typeof dayPlans.$inferSelect;
 export type Milestone = typeof milestones.$inferSelect;
 export type CalendarEvent = typeof events.$inferSelect;

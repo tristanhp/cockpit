@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { parisInstant } from "@/lib/dates";
-import { dueNotifications, type NotifyState } from "./notifications";
+import { DEFAULT_NOTIFY, dueNotifications, type NotifyState } from "./notifications";
 
 // 2026-11-02 is a Monday, 2026-11-07 a Saturday.
 const at = (day: string, hhmm: string) => parisInstant(day, Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3)));
@@ -14,6 +14,16 @@ describe("scheduled notifications", () => {
   it("sends the weekend cap at 09:30 on a Saturday", () => assert.deepEqual(kinds(dueNotifications(at("2026-11-07", "09:35"), empty())), ["cap"]));
   it("sends the clôture at 22:45", () => assert.deepEqual(kinds(dueNotifications(at("2026-11-02", "22:47"), empty())), ["cloture"]));
   it("sends screens-off at 23:00", () => assert.deepEqual(kinds(dueNotifications(at("2026-11-02", "23:01"), empty())), ["screens-off"]));
+  it("opens Aujourd'hui from the cap and the clôture from its own notification", () => {
+    assert.equal(dueNotifications(at("2026-11-02", "07:32"), empty())[0].url, "/");
+    assert.equal(dueNotifications(at("2026-11-02", "22:47"), empty())[0].url, "/cloture");
+  });
+  it("reads the times from the settings", () => {
+    const custom = { ...DEFAULT_NOTIFY, capWeekday: "06:45", clotureTime: "22:15", screensOffTime: "22:45" };
+    assert.deepEqual(kinds(dueNotifications(at("2026-11-02", "06:50"), empty(), custom)), ["cap"]);
+    assert.deepEqual(kinds(dueNotifications(at("2026-11-02", "07:32"), empty(), custom)), []);
+    assert.deepEqual(kinds(dueNotifications(at("2026-11-02", "22:20"), empty(), custom)), ["cloture"]);
+  });
   it("sends nothing at a quiet hour", () => assert.deepEqual(dueNotifications(at("2026-11-02", "15:12"), empty()), []));
   it("catches up a missed cron run within the window", () => assert.deepEqual(kinds(dueNotifications(at("2026-11-02", "22:58"), empty())), ["cloture"]));
   it("does not send a clôture hours late", () => assert.deepEqual(dueNotifications(at("2026-11-02", "21:00"), empty()), []));

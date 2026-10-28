@@ -54,6 +54,10 @@ Every event on a `travail` or `perso` calendar is a **block** (`blocks` table, s
 
 Calendar writes live in `src/writeback/blocks.ts` and `src/connectors/gcal.ts`. Each goes through `assertWritableCalendar` (only `travail` and `perso`) and checks `isDemo()` first; in demo mode only the local `events` and `blocks` tables change. Every state change and replan decision is appended to `block_log`.
 
+## Le cap and la clôture (S5)
+
+`src/engine/cloture.ts` holds the pure rules, all unit-tested: `suggestTop3` (Urgent and Haute work plus anything due, never more than three), `pickFirstAction`, `buildSnapshot` / `diffSnapshots` / `findClashes` (what changed since the evening: new or changed tickets, moved or added events, new clashes between a block and a non-block event) and the habit maths (`weeklyPct`, `missedTwoWeeks`). `src/rituals/` reads and writes the database: `day_plans` holds one row per day (the première action and top 3 chosen the evening before, `closedAt` and the `snapshot` of the day once closed, `startedAt` for *C'est parti*, `catchUpAt` for the morning catch-up), `habits` / `habit_logs` the habit ticks. Closing day D writes row D (`closedAt`, `snapshot`) and row D+1 (the plan). The "Restes" step and *C'est parti* move blocks through the S3 planner (`applyLeftover`, `moveBlockToNow`), so the same rules apply: protected events are never overlapped and calendar writes stay on travail/perso. Ritual times live in the `rituals` setting (`src/rituals/settings.ts`) and also drive `loadNotifySettings`, so the notifications follow them. `COCKPIT_NOW` (an instant, or a Paris wall time `YYYY-MM-DDTHH:mm`) moves the clock through `nowMs()` in `src/lib/dates.ts`, but only in demo mode and in tests.
+
 ## Dates
 
 Every "day" is computed in **Europe/Paris** (`src/lib/dates.ts`) regardless of the server's timezone, using `Intl` only.

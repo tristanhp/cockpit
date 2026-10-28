@@ -10,6 +10,8 @@ import { connectors, isDemo } from "@/sync";
 import { addNotionSource, addRoutingRule, adoptDiscovery, deleteRoutingRule, discoverNow, dismissDiscovery, toggleSource } from "@/app/actions";
 import { UndoButton } from "@/components/undo-button";
 import { NotificationsPanel } from "@/components/notifications-panel";
+import { RitualTimes } from "@/components/ritual-times";
+import { loadRitualSettings } from "@/rituals/settings";
 import { SecurityPanel } from "@/components/security-panel";
 import { authDisabled } from "@/lib/auth/session";
 import { Empty, PageHeader, Section } from "@/components/ui";
@@ -30,7 +32,7 @@ const ghostButton = "rounded-md border border-rule-strong px-2.5 py-1 text-xs ho
 
 async function Settings() {
   await connection();
-  const [passkeys, devices] = await Promise.all([db.select().from(schema.credentials), db.select().from(schema.pushSubscriptions)]);
+  const [passkeys, devices, rituals] = await Promise.all([db.select().from(schema.credentials), db.select().from(schema.pushSubscriptions), loadRitualSettings()]);
   const [sources, discoveries, projects, journal, rules] = await Promise.all([
     db.select().from(schema.sources),
     db.select().from(schema.discoveries).where(eq(schema.discoveries.dismissed, false)),
@@ -180,6 +182,10 @@ async function Settings() {
                 <SecurityPanel />
               </>
             )}
+          </Section>
+
+          <Section title="Rituels" aside="le cap et la clôture">
+            <RitualTimes settings={rituals} />
           </Section>
 
           <Section title="Notifications" count={devices.length}>

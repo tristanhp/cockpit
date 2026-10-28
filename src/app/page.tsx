@@ -3,7 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { and, gte, lte } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { addDays, daysFrom, formatDayCompact, formatDayMonth, formatRelative, isoWeek, parisDay, weekdayName } from "@/lib/dates";
+import { addDays, daysFrom, formatDayCompact, formatDayMonth, formatRelative, isoWeek, nowMs, parisDay, parisMinutes, weekdayName } from "@/lib/dates";
 import { eventsForDay, lastSync, loadContext, needsTriage, openTasks, upcomingExams, upcomingMilestones } from "@/lib/queries";
 import { Empty, Meteo, PageHeader, PillarDot, Section, TaskList } from "@/components/ui";
 import { SyncButton } from "@/components/sync-button";
@@ -12,6 +12,8 @@ import { DetailLink } from "@/components/detail-link";
 import { DetailPanel } from "@/components/detail-panel";
 import { MissedCard, NowStrip } from "@/components/blocks";
 import { DayReplanSheet, ReplanSheet } from "@/components/replan-sheet";
+import { Cap } from "@/components/cap";
+import { loadRitualSettings, minutesOf } from "@/rituals/settings";
 
 export default function TodayPage(props: PageProps<"/">) {
   return (
@@ -25,7 +27,7 @@ async function Today({ searchParams }: PageProps<"/">) {
   await connection();
   const sp = await searchParams;
   const today = parisDay();
-  const [tasks, events, ctx, milestones, exams, synced, seasons] = await Promise.all([
+  const [tasks, events, ctx, milestones, exams, synced, seasons, rituals] = await Promise.all([
     openTasks(),
     eventsForDay(today),
     loadContext(),
@@ -33,7 +35,10 @@ async function Today({ searchParams }: PageProps<"/">) {
     upcomingExams(today, 14),
     lastSync(),
     db.select().from(schema.seasons).where(and(lte(schema.seasons.startDate, today), gte(schema.seasons.endDate, today))),
+    loadRitualSettings(),
   ]);
+  // The clôture button shows from a quarter of an hour before its time.
+  const clotureSoon = parisMinutes(new Date(nowMs())) >= minutesOf(rituals.clotureTime) - 15;
 
   const mine = tasks.filter((t) => !needsTriage(t));
   const urgent = mine.filter((t) => t.dueDate && t.dueDate <= addDays(today, 1));
@@ -60,10 +65,16 @@ async function Today({ searchParams }: PageProps<"/">) {
           <Link href="/?replan=1" scroll={false} className="rounded-md border border-rule-strong px-3 py-1.5 text-sm hover:border-accent hover:text-accent">
             Replanifier ma journée
           </Link>
+          {clotureSoon && (
+            <Link href="/cloture" className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-paper hover:opacity-90">
+              Faire la clôture
+            </Link>
+          )}
           <SyncButton lastSyncLabel={formatRelative(synced)} />
         </div>
       </PageHeader>
 
+      <Cap />
       <NowStrip />
 
       {!synced && (

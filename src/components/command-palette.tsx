@@ -76,6 +76,8 @@ export function CommandPalette() {
       { id: "nav-triage", group: "Aller à", label: "Linear à trier", run: go("/taches?trier=1") },
       { id: "nav-inbox", group: "Aller à", label: "Inbox", hint: "captures à ranger", run: go("/inbox") },
       { id: "nav-week", group: "Aller à", label: "Semaine", hint: "blocs par jour", run: go("/semaine") },
+      { id: "act-cloture", group: "Actions", label: "Faire la clôture", hint: "bilan, restes, demain", run: go("/cloture") },
+      { id: "nav-habits", group: "Aller à", label: "Habitudes", hint: "la semaine en cours", run: go("/habitudes") },
       { id: "act-replan", group: "Actions", label: "Replanifier ma journée", hint: "r", run: go("/?replan=1") },
       { id: "nav-cockpit", group: "Aller à", label: "Cockpit", run: go("/cockpit") },
       { id: "nav-settings", group: "Aller à", label: "Réglages", run: go("/reglages") },

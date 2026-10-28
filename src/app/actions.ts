@@ -13,6 +13,9 @@ import { openTasks } from "@/lib/queries";
 import { fold } from "@/lib/text";
 import { requireAuth } from "@/lib/auth/guard";
 import { sendToAll } from "@/push";
+import { adjustPlan, closeDay, dismissCatchUp, resolveLeftover, startDay, type CloseInput } from "@/rituals";
+import { saveRitualSettings } from "@/rituals/settings";
+import type { LeftoverChoice } from "@/planning";
 
 // Local, single-user app for now: the dev server listens on 127.0.0.1 only.
 // Authentication comes with hosting (slice 11).
@@ -256,4 +259,50 @@ export async function sendTestPush() {
     if (!r.devices) throw new Error("Aucun appareil enregistré");
     if (!r.sent) throw new Error("L'envoi a échoué sur tous les appareils");
   });
+}
+
+// ---- Le cap et la clôture -----------------------------------------------------
+
+export async function resolveLeftoverAction(kind: "block" | "task", id: string, choice: LeftoverChoice) {
+  await requireAuth();
+  return run(() => resolveLeftover(kind, id, choice));
+}
+
+/** The clôture's inbox step may change the date of a capture before filing it. */
+export async function setInboxDue(id: string, dueDate: string | null) {
+  await requireAuth();
+  if (dueDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) return { ok: false, error: "Date invalide" } as const;
+  return run(() => db.update(schema.inbox).set({ dueDate }).where(eq(schema.inbox.id, id)));
+}
+
+export async function closeDayAction(input: CloseInput) {
+  await requireAuth();
+  return run(() => closeDay(input));
+}
+
+export async function adjustPlanAction(top3: string[], firstActionTaskId: string | null) {
+  await requireAuth();
+  return run(() => adjustPlan(top3, firstActionTaskId));
+}
+
+export async function dismissCatchUpAction() {
+  await requireAuth();
+  return run(() => dismissCatchUp());
+}
+
+export async function startDayAction(): Promise<ActionResult & { message?: string }> {
+  await requireAuth();
+  try {
+    const message = await startDay();
+    refresh();
+    return { ok: true, message };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Une erreur est survenue" };
+  }
+}
+
+export async function saveRitualTimes(formData: FormData) {
+  await requireAuth();
+  const get = (k: string) => String(formData.get(k) ?? "");
+  return run(() => saveRitualSettings({ capWeekday: get("capWeekday"), capWeekend: get("capWeekend"), clotureTime: get("clotureTime"), hardStop: get("hardStop") }));
 }
