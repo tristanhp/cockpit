@@ -5,11 +5,13 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { openCapture } from "./capture-dialog";
 import { openPalette } from "./command-palette";
+import { ProposalsBadge } from "./proposals-badge";
 
 const LINKS = [
   { href: "/", label: "Aujourd'hui", short: "Jour", icon: "M4 6h16M4 12h10M4 18h7" },
   { href: "/taches", label: "Tâches", short: "Tâches", icon: "M5 7l2 2 4-4M5 15l2 2 4-4M14 8h6M14 16h6" },
   { href: "/objectifs", label: "Objectifs", short: "Objectifs", icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm3.5 5.5-2 5-5 2 2-5z" },
+  { href: "/propositions", label: "Propositions", short: "Props", icon: "M5 5h14v10H9l-4 4zM9 9h6" },
   { href: "/reglages", label: "Réglages", short: "Réglages", icon: "M4 7h10M18 7h2M4 17h4M12 17h8M14 5v4M8 15v4" },
 ];
 
@@ -17,6 +19,7 @@ const LINKS = [
 const MORE = [
   { href: "/objectifs", label: "Objectifs", icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm3.5 5.5-2 5-5 2 2-5z" },
   { href: "/semaine", label: "Semaine", icon: "M4 6h16M4 12h16M4 18h16M9 4v4M15 10v4M8 16v4" },
+  { href: "/propositions", label: "Propositions", icon: "M5 5h14v10H9l-4 4zM9 9h6" },
   { href: "/saison", label: "Saison", icon: "M4 19V9l4-3 4 3 4-3 4 3v10M4 19h16M9 19v-5h6v5" },
   { href: "/revue", label: "Revue", icon: "M5 4h14v16H5zM9 9h6M9 13h6M9 17h3" },
   { href: "/habitudes", label: "Habitudes", icon: "M5 12l4 4 10-10M5 5h6M5 19h6" },
@@ -88,7 +91,8 @@ export function Nav({ demo = false }: { demo?: boolean }) {
                 }`}
               >
                 <Icon d={l.icon} />
-                {l.label}
+                <span className="flex-1">{l.label}</span>
+                {l.href === "/propositions" && <ProposalsBadge />}
               </Link>
             </li>
           ))}
@@ -144,7 +148,8 @@ export function Nav({ demo = false }: { demo?: boolean }) {
               <li key={l.href}>
                 <Link href={l.href} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm ${isActive(l.href) ? "text-accent" : "text-ink"}`}>
                   <Icon d={l.icon} />
-                  {l.label}
+                  <span className="flex-1">{l.label}</span>
+                  {l.href === "/propositions" && <ProposalsBadge />}
                 </Link>
               </li>
             ))}

@@ -67,7 +67,7 @@ function valueOf(task: Task, field: TaskField): unknown {
  * Cockpit-only override that survives syncs. Logged in `change_log` unless `log` is false
  * (undo marks the original entry instead).
  */
-export async function changeTask(taskId: string, field: TaskField, value: unknown, opts: { log?: boolean } = {}): Promise<void> {
+export async function changeTask(taskId: string, field: TaskField, value: unknown, opts: { log?: boolean; via?: string } = {}): Promise<void> {
   const patch = toPatch(field, value);
   const { sourceId, externalId } = splitTaskId(taskId);
   const source = await loadSource(sourceId);
@@ -125,6 +125,7 @@ export async function changeTask(taskId: string, field: TaskField, value: unknow
       after: value,
       source: overrideField && !atSource ? "cockpit" : source.id,
       response: result.response,
+      via: opts.via ?? null,
     });
   }
 }
@@ -206,7 +207,7 @@ export async function undoChange(id: number): Promise<void> {
 export type CreatedTask = { id: string; sourceId: string; title: string };
 
 /** Creates a task at its source (Notion page, Linear issue) and mirrors it locally right away. */
-export async function createTask(sourceId: string, projectId: string | null, task: NewTask): Promise<CreatedTask> {
+export async function createTask(sourceId: string, projectId: string | null, task: NewTask, opts: { via?: string } = {}): Promise<CreatedTask> {
   const source = await loadSource(sourceId);
   const connector = connectors[source.kind];
   if (source.role !== "tasks" || !connector.createTask) throw new Error("Cette source n'accepte pas de nouvelles tâches");
@@ -264,6 +265,7 @@ export async function createTask(sourceId: string, projectId: string | null, tas
     after: task.title,
     source: source.id,
     response,
+    via: opts.via ?? null,
   });
   return { id, sourceId: source.id, title: task.title };
 }

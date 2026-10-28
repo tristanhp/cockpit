@@ -4,6 +4,7 @@ import { dueNotifications } from "@/engine/notifications";
 import { reconcileBlocks } from "@/planning";
 import { prepareDraft, refreshMetrics } from "@/review";
 import { refreshSeason } from "@/season";
+import { expirePending } from "@/proposals";
 import { pushConfigured, sendToAll } from "@/push";
 import { loadNotifySettings, loadNotifyState, recordSent } from "@/push/state";
 import { isDemo, syncAll } from "@/sync";
@@ -17,6 +18,7 @@ export async function POST(request: Request) {
   await reconcileBlocks();
   await refreshMetrics();
   await refreshSeason();
+  await expirePending();
   await prepareDraft();
   // Demo data never notifies anybody.
   if (isDemo() || (authDisabled() && !pushConfigured())) return Response.json({ ok: true, sync: report.length, sent: [] });

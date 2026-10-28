@@ -2,6 +2,7 @@ import Link from "next/link";
 import { breakdownPrompt, measureLabel, SIGNAL_LABEL, type Signal } from "@/engine/goals";
 import { formatDayCompact, formatDayLong, formatTime } from "@/lib/dates";
 import { goalView, SEASON_LIMIT } from "@/goals";
+import { proposalsForGoal } from "@/proposals";
 import { AddMilestone, AddTask, BreakdownButton, GoalControls, LinkPicker, Unlink } from "./goal-forms";
 import { Fact, Facts, Shell } from "./panel-shell";
 
@@ -28,8 +29,9 @@ export async function GoalPanel({ id, close, rest }: { id: string; close: string
   const withParam = (base: string, extra: Record<string, string>) => `${base}?${new URLSearchParams({ ...Object.fromEntries(rest), ...extra })}`;
   const projectHref = (pid: string) => withParam("/objectifs", { vue: "projets", p: pid });
 
+  const pendingProposals = await proposalsForGoal(goal.id);
   const prompt = view.signals.includes("sans-fil")
-    ? breakdownPrompt(goal, { seasonName: overview.season?.name ?? null, dueDate: goal.dueDate, projects: th.projects.map((p) => p.name), notes: goal.notes, today: overview.today })
+    ? breakdownPrompt(goal, { goalId: goal.id, seasonName: overview.season?.name ?? null, dueDate: goal.dueDate, projects: th.projects.map((p) => p.name), notes: goal.notes, today: overview.today })
     : null;
 
   return (
@@ -150,10 +152,20 @@ export async function GoalPanel({ id, close, rest }: { id: string; close: string
         <AddTask goalId={goal.id} sources={overview.world.taskSources} projects={th.projects.length ? th.projects.map((p) => ({ id: p.id, name: p.name })) : overview.world.projects} />
       </div>
 
-      {prompt && (
+      {(prompt || pendingProposals.length > 0) && (
         <div className="mt-6">
-          <p className="mb-1.5 text-xs text-ink-faint">Cet objectif est sans fil. Copie un prompt prêt à coller dans Claude, ou ajoute des jalons et des tâches à la main ci-dessus.</p>
-          <BreakdownButton prompt={prompt} />
+          {prompt && (
+            <>
+              <p className="mb-1.5 text-xs text-ink-faint">Cet objectif est sans fil. Copie ce prompt dans une conversation avec Claude (connecté à Cockpit, il te fera une proposition à valider), ou ajoute des jalons et des tâches à la main ci-dessus.</p>
+              <BreakdownButton prompt={prompt} />
+            </>
+          )}
+          {pendingProposals.length > 0 && (
+            <p className="mt-3 text-sm">
+              {pendingProposals.length} proposition{pendingProposals.length > 1 ? "s" : ""} de découpage en attente :{" "}
+              <Link href="/propositions" className="underline decoration-rule-strong underline-offset-4 hover:decoration-accent">les voir</Link>
+            </p>
+          )}
         </div>
       )}
     </Shell>

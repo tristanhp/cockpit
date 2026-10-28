@@ -56,6 +56,7 @@ npx web-push generate-vapid-keys    # VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY
 | `COCKPIT_SETUP_TOKEN` | step 2. Lets you enrol the **first** passkey. Remove it afterwards |
 | `COCKPIT_CRON_TOKEN` | step 2. Bearer token for `/api/cron/tick` and `/api/sync` |
 | `COCKPIT_CAPTURE_TOKEN` | step 2. Bearer token for `/api/capture` |
+| `COCKPIT_MCP_TOKEN` | optional. Bearer token for `/api/mcp` (Claude reads Cockpit and makes proposals, see [MCP.md](MCP.md)). Unset: the endpoint answers 404 |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | step 2 |
 | `VAPID_SUBJECT` | `mailto:you@example.com`: who the push services can contact |
 

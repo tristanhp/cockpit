@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { searchEverything, syncNow, type SearchHit } from "@/app/actions";
 import { fold as norm } from "@/lib/text";
 import { openCapture } from "./capture-dialog";
+import { useProposalCount } from "./proposals-badge";
 
 const OPEN_EVENT = "cockpit:palette";
 export const openPalette = () => window.dispatchEvent(new Event(OPEN_EVENT));
@@ -20,6 +21,7 @@ export function CommandPalette() {
   const [active, setActive] = useState(0);
   const [pending, start] = useTransition();
   const input = useRef<HTMLInputElement>(null);
+  const proposals = useProposalCount();
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -78,6 +80,7 @@ export function CommandPalette() {
       { id: "nav-week", group: "Aller à", label: "Semaine", hint: "blocs par jour", run: go("/semaine") },
       { id: "act-cloture", group: "Actions", label: "Faire la clôture", hint: "bilan, restes, demain", run: go("/cloture") },
       { id: "nav-habits", group: "Aller à", label: "Habitudes", hint: "la semaine en cours", run: go("/habitudes") },
+      { id: "nav-proposals", group: "Aller à", label: "Propositions", hint: proposals ? `${proposals} en attente · Claude` : "ce que Claude propose", run: go("/propositions") },
       { id: "nav-season", group: "Aller à", label: "La saison", hint: "classement, forme, courbes", run: go("/saison") },
       { id: "act-revue", group: "Actions", label: "Faire la revue", hint: "la semaine, en dix minutes", run: go("/revue") },
       { id: "act-replan", group: "Actions", label: "Replanifier ma journée", hint: "r", run: go("/?replan=1") },
@@ -94,7 +97,7 @@ export function CommandPalette() {
       ...filtered,
       ...hits.map((h) => ({ id: h.id, group: h.kind === "task" ? "Tâches" : "Projets", label: h.label, hint: h.hint, run: go(h.href) })),
     ];
-  }, [query, hits, router]);
+  }, [query, hits, router, proposals]);
 
   const run = (item: Item | undefined) => {
     if (!item) return;

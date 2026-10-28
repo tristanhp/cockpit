@@ -123,7 +123,10 @@ async function Settings() {
                           {c.field !== "create" && <> : {show(c.field, c.before)} → {show(c.field, c.after)}</>}
                         </span>
                       </span>
-                      <span className="text-xs text-ink-faint" title={c.response ?? undefined}>{c.source === "cockpit" ? "Cockpit" : c.source === "sync" ? "synchro" : (sources.find((s) => s.id === c.source)?.name ?? c.source)}</span>
+                      <span className="text-xs text-ink-faint" title={c.response ?? undefined}>
+                        {c.source === "cockpit" ? "Cockpit" : c.source === "sync" ? "synchro" : (sources.find((s) => s.id === c.source)?.name ?? c.source)}
+                        {c.via && <span className="ml-1.5 rounded-sm border border-rule-strong px-1 text-[11px] leading-4 text-accent">via {c.via}</span>}
+                      </span>
                       {!c.undone && c.source !== "sync" && c.field !== "create" ? <UndoButton id={c.id} /> : c.undone ? <span className="text-xs text-ink-faint">annulé</span> : null}
                     </li>
                   ))}

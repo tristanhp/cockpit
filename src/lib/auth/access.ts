@@ -21,7 +21,7 @@ export type RouteClass = "public" | "machine" | "private";
 
 const PUBLIC = [/^\/connexion$/, /^\/api\/auth\//, /^\/manifest\.webmanifest$/, /^\/sw\.js$/, /^\/offline\.html$/, /^\/icons\//, /^\/favicon\.ico$/];
 // Machine endpoints check their own bearer token (a cron, a phone shortcut).
-const MACHINE = [/^\/api\/cron\//, /^\/api\/capture$/, /^\/api\/sync$/];
+const MACHINE = [/^\/api\/cron\//, /^\/api\/capture$/, /^\/api\/sync$/, /^\/api\/mcp$/];
 
 export function classifyRoute(path: string): RouteClass {
   if (PUBLIC.some((r) => r.test(path))) return "public";
