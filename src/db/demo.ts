@@ -4,6 +4,7 @@
 import { db, schema } from "./index";
 import { addDays, isoWeekday, parisDay } from "@/lib/dates";
 import { buildSnapshot, weekStart } from "@/engine/cloture";
+import { computeAwards, POINTS, resultOf, table as seasonTotals, type Played } from "@/engine/season";
 import { computePriority, projectScaleFromLevel } from "@/engine/priority";
 
 const today = parisDay();
@@ -200,6 +201,10 @@ async function main() {
     { id: "b2", title: "Préparer les slides de mi-parcours", start: rel(-20), end: rel(40), task: "notion-cours:t2", status: "planned", origin: "cockpit", type: "rédaction", effort: 2, description: "cockpit:task=notion-cours:t2" },
     { id: "b3", title: "COV-14 Fix position GPS figée", start: rel(90), end: rel(180), task: "linear-covoit:t3", status: "planned", origin: "calendar", type: "développement", effort: 3 },
     { id: "b4", title: "Plan d'entraînement semaine 6", start: at(1, "09:30"), end: at(1, "11:00"), task: "notion-taches:t5", status: "planned", origin: "cockpit", type: null, effort: 5, description: "cockpit:task=notion-taches:t5" },
+    { id: "b6", title: "Relire l'état de l'art", start: at(-3, "10:00"), end: at(-3, "11:30"), task: "notion-cours:t6", status: "done", origin: "cockpit", type: "études", effort: 3 },
+    { id: "b7", title: "Slides : plan général", start: at(-3, "14:00"), end: at(-3, "15:00"), task: "notion-cours:t2", status: "done", origin: "cockpit", type: "études", effort: 2 },
+    { id: "b8", title: "Plan d'entraînement semaine 5", start: at(-2, "09:30"), end: at(-2, "11:00"), task: "notion-taches:t5", status: "missed", origin: "cockpit", type: null, effort: 3 },
+    { id: "b9", title: "Mixer la piste 2", start: at(-2, "15:00"), end: at(-2, "16:00"), task: "notion-taches:t7", status: "missed", origin: "cockpit", type: null, effort: 2 },
     { id: "b5", title: "Atelier admin", start: at(1, "16:00"), end: at(1, "17:00"), task: null, status: "planned", origin: "calendar", type: null, effort: null },
   ];
   await db.insert(schema.events).values(
@@ -233,10 +238,10 @@ async function main() {
   const pattern: Record<string, (week: number, dow: number) => boolean> = {
     "sommeil-minuit": (w, d) => (w === -1 ? d !== 5 && d !== 6 : d !== 6),
     lecture: (_w, d) => d !== 4,
-    etirements: (w, d) => (w === -3 ? d <= 5 : d === 1 || d === 4),
+    etirements: (w, d) => (w <= -3 ? d <= 5 : d === 1 || d === 4),
   };
   const logs: (typeof schema.habitLogs.$inferInsert)[] = [];
-  for (let n = -21; n < 0; n++) {
+  for (let n = -56; n < 0; n++) {
     const d = addDays(week0, n);
     if (d >= today) continue;
     const week = Math.floor(n / 7);
@@ -287,7 +292,61 @@ async function main() {
     mk(2, { pointsDone: 6, pointsPlanned: 12, blocksKept: 7, blocksPlanned: 11, ritualsDone: 5, sportDone: 3, sportPlanned: 3 }),
     mk(3, { pointsDone: 12, pointsPlanned: 14, blocksKept: 9, blocksPlanned: 10, ritualsDone: 6, sportDone: 3, sportPlanned: 3 }),
     mk(4, { pointsDone: 8, pointsPlanned: 13, blocksKept: 7, blocksPlanned: 9, ritualsDone: 6, sportDone: 2, sportPlanned: 3 }),
+    mk(5, { pointsDone: 9, pointsPlanned: 12, blocksKept: 8, blocksPlanned: 10, ritualsDone: 5, sportDone: 3, sportPlanned: 3 }),
+    mk(6, { pointsDone: 5, pointsPlanned: 11, blocksKept: 4, blocksPlanned: 9, ritualsDone: 4, sportDone: 1, sportPlanned: 3 }),
+    mk(7, { pointsDone: 11, pointsPlanned: 13, blocksKept: 9, blocksPlanned: 11, ritualsDone: 6, sportDone: 3, sportPlanned: 3 }),
   ]);
+
+  // La saison: a past season and the current one, with a generated history of matches (a pseudo-random but fixed
+  // pattern, so the demo is always the same), the table, the player card, goal progress lines and the recap.
+  await db.insert(schema.seasons).values({ id: "printemps", name: "Printemps", startDate: day(-140), endDate: day(-41), notes: "Cours, projet de groupe" });
+  let seed = 7;
+  const rand = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+  const history = (from: number, to: number, bias: number, seasonId: string, cupDay?: [number, string]) => {
+    const out: (typeof schema.matches.$inferInsert)[] = [];
+    for (let n = from; n <= to; n++) {
+      if (isoWeekday(day(n)) === 7 && rand() < 0.7) continue; // most Sundays are off
+      const ratio = Math.min(1, Math.max(0.2, Math.round((bias + (rand() - 0.5) * 0.7) * 100) / 100));
+      const result = resultOf(ratio);
+      const planned = 8 + Math.floor(rand() * 8);
+      const kept = Math.round(ratio * 4);
+      const cup = cupDay?.[0] === n;
+      const k = cup ? 2 : 1;
+      out.push({
+        day: day(n), seasonId, plannedPoints: planned, donePoints: Math.round(planned * ratio), blocksPlanned: 4, blocksKept: kept, ritualsPlanned: 2, ritualsDone: ratio > 0.5 ? 2 : 1,
+        mandatoryMissed: ratio < 0.6 ? 1 : 0, goalsFor: k * (Math.round(planned * ratio * 0.6) + kept), goalsAgainst: k * (ratio < 0.6 ? 1 : 0), ratio, result, points: POINTS[result],
+        cup, cupTitle: cup ? cupDay![1] : null, computedAt: now,
+      });
+    }
+    return out;
+  };
+  const spring = history(-140, -41, 0.68, "printemps", [-95, "Partiels de mars"]);
+  const autumn = history(-40, -4, 0.74, "saison", [-17, "EV Systèmes"]);
+  // The last three days are what the nightly pass derives from the blocks above: a draw, then two losses (a crise).
+  const lastDays: (typeof schema.matches.$inferInsert)[] = [
+    { day: day(-3), ratio: 0.7778, plannedPoints: 9, donePoints: 7, blocksPlanned: 2, blocksKept: 2, ritualsPlanned: 2, ritualsDone: 0, mandatoryMissed: 0, goalsFor: 7, goalsAgainst: 0, result: "N", points: 1 },
+    { day: day(-2), ratio: 0, plannedPoints: 9, donePoints: 0, blocksPlanned: 2, blocksKept: 0, ritualsPlanned: 2, ritualsDone: 0, mandatoryMissed: 0, goalsFor: 0, goalsAgainst: 0, result: "D", points: 0 },
+    { day: day(-1), ratio: 0.5, plannedPoints: 10, donePoints: 5, blocksPlanned: 2, blocksKept: 1, ritualsPlanned: 2, ritualsDone: 1, mandatoryMissed: 1, goalsFor: 5, goalsAgainst: 1, result: "D", points: 0 },
+  ].map((m) => ({ ...m, seasonId: "saison", cup: false, cupTitle: null, computedAt: now }) as typeof schema.matches.$inferInsert);
+  autumn.push(...lastDays);
+  await db.insert(schema.matches).values([...spring, ...autumn]);
+  const asPlayed = (rows: typeof spring): Played[] => rows.map((m) => ({ day: m.day, result: m.result as "V" | "N" | "D", goalsFor: m.goalsFor, goalsAgainst: m.goalsAgainst }));
+  for (const [seasonId, rows] of [["printemps", spring], ["saison", autumn]] as const) {
+    const t = seasonTotals(asPlayed(rows));
+    await db.insert(schema.seasonTable).values({ seasonId, played: t.played, points: t.points, wins: t.wins, draws: t.draws, losses: t.losses, goalsFor: t.goalsFor, goalsAgainst: t.goalsAgainst });
+  }
+  // The current season's last matches (days -3 to -1) are re-derived from the blocks by the nightly pass.
+  // The card is re-derived on every sync; last week's ratings are what the derivation gave a week earlier, so deltas stay small.
+  const playerCard: Record<string, [number, number]> = { etudes: [47, 47], carriere: [18, 18], projets: [60, 58], assos: [5, 5], sport: [30, 30], "vie-perso": [52, 52], musique: [10, 10] };
+  await db.insert(schema.ratings).values(Object.entries(playerCard).flatMap(([pillarId, [now_, before]]) => [{ pillarId, weekStart: week0, rating: now_ }, { pillarId, weekStart: addDays(week0, -7), rating: before }]));
+  const lines: Record<string, number[]> = { "g-candidatures": [10, 10, 20, 20, 30, 30], "g-sorties": [25, 38, 38, 50, 63, 63] };
+  await db.insert(schema.goalSnapshots).values(Object.entries(lines).flatMap(([goalId, pcts]) => pcts.map((pct, i) => ({ goalId, weekStart: addDays(week0, -7 * (pcts.length - 1 - i)), pct }))));
+  const recap = computeAwards({
+    matches: asPlayed(spring),
+    pillarRatings: [{ name: "Études", rating: 77 }, { name: "Sport & Bien-être", rating: 71 }, { name: "Carrière", rating: 60 }],
+    projectPoints: [{ name: "Mémoire de fin d'études", points: 64 }, { name: "Covoit' (side project)", points: 52 }],
+  });
+  await db.insert(schema.awards).values(recap.map((a) => ({ id: `award-printemps-${a.kind}`, seasonId: "printemps", ...a, createdAt: now })));
   await db.insert(schema.reviews).values([
     {
       id: `review-${addDays(week0, -7)}`, kind: "weekly", weekStart: addDays(week0, -7), status: "done", createdAt: at(-8, "19:30"), completedAt: at(-8, "19:45"),

@@ -6,10 +6,13 @@ import { completeReviewAction, confirmWeekAction, generateProposalAction, saveRe
 import type { ReviewData } from "@/db/schema";
 import { formatDayLong, formatDuration, formatTime, parisDay } from "@/lib/dates";
 import type { ReviewView } from "@/review";
+import type { SeasonReveal } from "@/season";
+import { ResultChip } from "./season-ui";
+import { formatDayShort } from "@/lib/dates";
 import { notify } from "./feedback";
 import { ProposalBlockActions } from "./proposal-actions";
 
-const STEPS = ["Une page", "Tes chiffres", "Les fils", "Le focus", "La semaine"] as const;
+const STEPS = ["Une page", "La saison", "Tes chiffres", "Les fils", "Le focus", "La semaine"] as const;
 const primary = "rounded-md bg-accent px-4 py-2 text-sm font-medium text-paper hover:opacity-90 disabled:opacity-50";
 const ghost = "rounded-md border border-rule-strong px-3 py-1.5 text-sm hover:border-accent hover:text-accent disabled:opacity-50";
 const field = "rounded-md border border-rule-strong bg-paper px-3 py-2 text-sm placeholder:text-ink-faint focus:border-accent focus:outline-none";
@@ -17,7 +20,7 @@ const label = "flex flex-col gap-1 text-xs text-ink-soft";
 
 type Numbers = NonNullable<ReviewData["numbers"]>;
 
-export function RevueFlow({ view }: { view: ReviewView }) {
+export function RevueFlow({ view, season }: { view: ReviewView; season: SeasonReveal }) {
   const { review } = view;
   const data = review.data;
   const done = review.status === "done";
@@ -25,6 +28,7 @@ export function RevueFlow({ view }: { view: ReviewView }) {
   const [pending, start] = useTransition();
   const [held, setHeld] = useState<Record<string, boolean>>(data.focusHeld ?? {});
   const [resume, setResume] = useState(data.resume ?? "");
+  const [crisis, setCrisis] = useState(data.crisis ?? "");
   const [numbers, setNumbers] = useState<Numbers>(data.numbers ?? { sleepAvg: "", bedtimesOnTarget: null, energy: null, win: "" });
   const [threads, setThreads] = useState<Record<string, "plan" | "pause">>(data.threads ?? {});
   const [focus, setFocus] = useState(view.focus);
@@ -37,7 +41,7 @@ export function RevueFlow({ view }: { view: ReviewView }) {
       then?.();
     });
   const patchFor = (s: number): Partial<ReviewData> =>
-    s === 0 ? { focusHeld: held, resume } : s === 1 ? { numbers } : s === 2 ? { threads } : s === 3 ? { focus } : {};
+    s === 0 ? { focusHeld: held, resume } : s === 1 ? { crisis } : s === 2 ? { numbers } : s === 3 ? { threads } : s === 4 ? { focus } : {};
   const go = (to: number) => save({ ...patchFor(step), step: to }, () => setStep(to));
 
   if (done)
@@ -61,7 +65,7 @@ export function RevueFlow({ view }: { view: ReviewView }) {
 
   return (
     <div className="max-w-2xl">
-      <ol className="mb-8 grid grid-cols-5 gap-2" aria-label="Progression">
+      <ol className="mb-8 grid grid-cols-3 gap-x-2 gap-y-3 sm:grid-cols-6" aria-label="Progression">
         {STEPS.map((l, i) => (
           <li key={l} aria-current={i === step ? "step" : undefined}>
             <button onClick={() => go(i)} disabled={pending} className="block w-full text-left">
@@ -110,6 +114,53 @@ export function RevueFlow({ view }: { view: ReviewView }) {
 
       {step === 1 && (
         <section>
+          <h2 className="mb-1 font-serif text-2xl italic">La saison</h2>
+          <p className="mb-3 text-sm text-ink-soft">Chaque jour était un match contre ton plan. Rien de grave dans une défaite : on regarde, on passe. <button onClick={() => go(2)} disabled={pending} className="underline decoration-rule-strong underline-offset-4 hover:decoration-accent">Passer cette étape</button></p>
+          <ul className="border-y border-rule">
+            {season.fixtures.map((f) => (
+              <li key={f.day} className="flex items-center gap-3 border-b border-rule py-2 text-sm last:border-b-0">
+                <span className="w-24 shrink-0 text-xs text-ink-faint">{formatDayShort(f.day)}</span>
+                {f.match ? (
+                  <>
+                    <ResultChip result={f.match.result} cup={f.match.cup} />
+                    <span className="font-mono text-xs tabular-nums">{f.match.goalsFor}–{f.match.goalsAgainst}</span>
+                    <span className="min-w-0 flex-1 truncate text-xs text-ink-faint">{f.match.cup && f.match.cupTitle ? `coupe · ${f.match.cupTitle}` : `${Math.round(f.match.ratio * 100)} % du plan`}</span>
+                  </>
+                ) : (
+                  <span className="text-xs text-ink-faint">pas de match</span>
+                )}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-5 grid gap-6 sm:grid-cols-2">
+            <div>
+              <p className="smallcaps mb-1 text-xs text-ink-faint">La forme</p>
+              <div className="flex gap-1.5">{season.form.length ? season.form.map((r, i) => <ResultChip key={i} result={r} />) : <span className="text-sm text-ink-faint">—</span>}</div>
+              <p className="smallcaps mb-1 mt-4 text-xs text-ink-faint">Le classement</p>
+              <p className="font-mono text-sm tabular-nums">{season.table.points} pts · {season.table.wins}V {season.table.draws}N {season.table.losses}D · {season.table.perMatch}/match</p>
+              {season.past.map((p) => <p key={p.name} className="font-mono text-xs tabular-nums text-ink-faint">{p.name} : {p.table.perMatch}/match ({p.table.points} pts)</p>)}
+            </div>
+            <div>
+              <p className="smallcaps mb-1 text-xs text-ink-faint">La carte du joueur</p>
+              <p className="font-serif text-3xl tabular-nums">{season.card.overall ?? "—"}{season.card.overallDelta ? <span className={`ml-2 text-sm ${season.card.overallDelta > 0 ? "text-ok" : "text-margin"}`}>{season.card.overallDelta > 0 ? "+" : ""}{season.card.overallDelta}</span> : null}</p>
+              <ul className="text-xs text-ink-soft">
+                {season.card.pillars.filter((p) => p.delta).map((p) => <li key={p.id}>{p.name} {p.rating} <span className={p.delta! > 0 ? "text-ok" : "text-margin"}>{p.delta! > 0 ? "+" : ""}{p.delta}</span></li>)}
+              </ul>
+            </div>
+          </div>
+          {season.crisis && (
+            <div className="mt-6 border-l-2 border-margin pl-4">
+              <label className={label}>
+                Deux défaites de suite. Qu&apos;est-ce qui s&apos;est passé, et qu&apos;est-ce qui changerait la donne ?
+                <textarea value={crisis} onChange={(e) => setCrisis(e.target.value)} rows={2} className={field} />
+              </label>
+            </div>
+          )}
+        </section>
+      )}
+
+      {step === 2 && (
+        <section>
           <h2 className="mb-3 font-serif text-2xl italic">Tes chiffres</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className={label}>Sommeil moyen<input value={numbers.sleepAvg} onChange={(e) => setNumbers({ ...numbers, sleepAvg: e.target.value })} placeholder="7 h 15" className={field} /></label>
@@ -129,7 +180,7 @@ export function RevueFlow({ view }: { view: ReviewView }) {
         </section>
       )}
 
-      {step === 2 && (
+      {step === 3 && (
         <section>
           <h2 className="mb-1 font-serif text-2xl italic">Les fils</h2>
           <p className="mb-2 text-sm text-ink-soft">Chaque objectif actif, avec où il en est.</p>
@@ -170,7 +221,7 @@ export function RevueFlow({ view }: { view: ReviewView }) {
         </section>
       )}
 
-      {step === 3 && (
+      {step === 4 && (
         <section>
           <h2 className="mb-1 font-serif text-2xl italic">Le focus</h2>
           <p className="mb-3 text-sm text-ink-soft">Un résultat attendu par projet prioritaire, pour la semaine qui vient. Prérempli avec la prochaine action.</p>
@@ -188,7 +239,7 @@ export function RevueFlow({ view }: { view: ReviewView }) {
         </section>
       )}
 
-      {step === 4 && (
+      {step === 5 && (
         <section>
           <h2 className="mb-1 font-serif text-2xl italic">La semaine</h2>
           <p className="mb-3 text-sm text-ink-soft">

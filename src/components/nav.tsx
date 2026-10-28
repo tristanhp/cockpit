@@ -17,6 +17,7 @@ const LINKS = [
 const MORE = [
   { href: "/objectifs", label: "Objectifs", icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm3.5 5.5-2 5-5 2 2-5z" },
   { href: "/semaine", label: "Semaine", icon: "M4 6h16M4 12h16M4 18h16M9 4v4M15 10v4M8 16v4" },
+  { href: "/saison", label: "Saison", icon: "M4 19V9l4-3 4 3 4-3 4 3v10M4 19h16M9 19v-5h6v5" },
   { href: "/revue", label: "Revue", icon: "M5 4h14v16H5zM9 9h6M9 13h6M9 17h3" },
   { href: "/habitudes", label: "Habitudes", icon: "M5 12l4 4 10-10M5 5h6M5 19h6" },
   { href: "/cloture", label: "Clôture", icon: "M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" },

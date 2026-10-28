@@ -78,6 +78,7 @@ export function CommandPalette() {
       { id: "nav-week", group: "Aller à", label: "Semaine", hint: "blocs par jour", run: go("/semaine") },
       { id: "act-cloture", group: "Actions", label: "Faire la clôture", hint: "bilan, restes, demain", run: go("/cloture") },
       { id: "nav-habits", group: "Aller à", label: "Habitudes", hint: "la semaine en cours", run: go("/habitudes") },
+      { id: "nav-season", group: "Aller à", label: "La saison", hint: "classement, forme, courbes", run: go("/saison") },
       { id: "act-revue", group: "Actions", label: "Faire la revue", hint: "la semaine, en dix minutes", run: go("/revue") },
       { id: "act-replan", group: "Actions", label: "Replanifier ma journée", hint: "r", run: go("/?replan=1") },
       { id: "nav-goals", group: "Aller à", label: "Objectifs", hint: "vision, année, saison", run: go("/objectifs") },

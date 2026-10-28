@@ -200,7 +200,7 @@ export async function generateProposal(now = nowMs()): Promise<StoredProposal> {
   const sansFil = view.goals.filter((g) => g.drifting && view.review.data.threads?.[g.id] !== "pause");
   const proposal = await proposeWeekFor(view.nextWeek, view.budget.budget, sansFil.map((g) => ({ goalId: g.id, title: `Fil : ${g.title}`, minutes: 60 })), now);
   const stored = toStored(view.nextWeek, view.budget.budget, 0, proposal, now);
-  await saveStep(view.weekStart, { proposal: stored, step: 4 });
+  await saveStep(view.weekStart, { proposal: stored, step: 5 });
   return stored;
 }
 
