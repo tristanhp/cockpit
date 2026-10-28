@@ -6,9 +6,9 @@ The next slice to build is the first `todo`. Sessions update this file in their 
 | Slice | Name | Status | Branch / PR | Notes |
 |---|---|---|---|---|
 | S1 | Read-only sync, four screens, design pass, palette, detail panels, demo mode | done | main | |
-| S2 | Write-back, capture and the priority scale | in review | `slice/s2-write-back` | Priority and effort, write-back to Notion and Linear with a change journal and undo, capture (`c`, `/api/capture`) and Inbox, Linear triage, dark default. 2026-10-27. [brief](slices/S2.md) |
-| S3 | Blocks and the replan | in review | `slice/s3-blocks-replan` | Blocks from calendar events, free slots / placement / day replan engine (56 tests), Maintenant strip, À replacer + replan sheet, Replanifier ma journée, calendar writes on travail/perso only, `/semaine`. Stacked on S2. 2026-10-27. [brief](slices/S3.md) |
-| S4 | On the phone: auth, PWA, notifications | in review | `slice/s4-phone` | Versioned migrations + CI check, passkey login (proxy + per-action check), PWA (manifest, icons, offline shell), web-push with a tested `dueNotifications`, cron workflow, `docs/DEPLOY.md`. Stacked on S3. 2026-10-27. [brief](slices/S4.md) |
+| S2 | Write-back, capture and the priority scale | done | main | Priority and effort, write-back to Notion and Linear with a change journal and undo, capture (`c`, `/api/capture`) and Inbox, Linear triage, dark default. 2026-10-27. [brief](slices/S2.md) |
+| S3 | Blocks and the replan | done | main | Blocks from calendar events, free slots / placement / day replan engine (56 tests), Maintenant strip, À replacer + replan sheet, Replanifier ma journée, calendar writes on travail/perso only, `/semaine`. Stacked on S2. 2026-10-27. [brief](slices/S3.md) |
+| S4 | On the phone: auth, PWA, notifications | done | main | Versioned migrations + CI check, passkey login (proxy + per-action check), PWA (manifest, icons, offline shell), web-push with a tested `dueNotifications`, cron workflow, `docs/DEPLOY.md`. Deployed on Vercel + Turso 2026-10-28. Stacked on S3. 2026-10-27. [brief](slices/S4.md) |
 | S5 | Le cap and la clôture | todo | | [brief](slices/S5.md) |
 | S6 | Vision, goals and threads | todo | | [brief](slices/S6.md) |
 | S7 | La revue and the week engine | todo | | [brief](slices/S7.md) |
@@ -24,4 +24,9 @@ If the first `todo` slice has an unmet dependency (not `done` or `in review`), s
 
 Things only the owner can do, collected from merged slices. Tick them off here.
 
-- [ ] _(none yet)_
+- [x] S4: deploy end to end (Turso, Vercel, `APP_URL`), passkey enrolled, setup token removed, cron green, push works on phone and laptop.
+- [ ] S4: one real block-end check-in and the 22:45 clôture notification have arrived.
+- [ ] S4: second passkey added (laptop) so losing the phone does not lock you out.
+- [ ] S2: write-back checked with real Notion and Linear (done and reopen, priority and due date, capture filed in the right base, undo from the journal).
+- [ ] S3: calendar writes checked with real Google Calendar (block created and moved, sport and class calendars never written to).
+- [ ] Overlapping blocks after a replan were seen once in the demo and could not be reproduced headlessly; report the click sequence if it happens on real data.
