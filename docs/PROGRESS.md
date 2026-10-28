@@ -18,7 +18,7 @@ The next slice to build is the first `todo`. Sessions update this file in their 
 ## Dependencies
 
 S3 needs S2 (priority and effort). S4 needs S2 (capture endpoint) and S3 (block check-ins). S5 needs S2 and S3. S6 can start after S2 but is planned after S5 so the clôture can tick habits. S7 needs S3 and S6. S8 needs S5 and S7. S9 needs S2, S3 and S6.
-If the first `todo` slice has an unmet dependency (not `done` or `in review`), stop and tell the owner.
+If the first `todo` slice has an unmet dependency (not `done` or `in review` **on `main`**), stop and tell the owner. A slice branch is always cut from `main` and its pull request targets `main`; merge each slice before starting the next, never stack them.
 
 ## Owner follow-ups
 

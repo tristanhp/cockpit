@@ -5,7 +5,7 @@ How any session (cloud or local) builds the next slice of Cockpit. One slice per
 ## 0. Orient (keep it short)
 
 1. Read `CLAUDE.md`, `docs/PROGRESS.md`, then `docs/SPEC.md` for the product rules.
-2. The target is the **first slice marked `todo`** in `docs/PROGRESS.md`. If the user named a slice, use that one.
+2. The target is the **first slice marked `todo`** in `docs/PROGRESS.md`. If the user named a slice, use that one. Its dependencies must be `done` or `in review` **on `main`**: a status on `main` means that slice's code is merged. If one is missing, stop and tell the owner. Never build on top of another slice's branch.
 3. Check that nobody is already on it: `git ls-remote --heads origin "slice/*"`. If a branch for the target slice exists, **stop** and tell the user (it is probably an open pull request waiting for review).
 4. Read the slice's brief in `docs/slices/` completely. Read only the source files you need; do not read the whole repository.
 
@@ -17,7 +17,7 @@ Write a short plan in your first message: the data model change, the server code
 
 - Branch from `main`: `git switch -c slice/sN-short-name`.
 - Work in demo mode: `npm run demo` (or `npm run dev` with `COCKPIT_DEMO=1 DATABASE_URL=file:data/demo.db`). Real accounts are not reachable from the cloud and must never be needed.
-- Order of work: schema (`src/db/schema.ts`, then `npm run db:push` and `npm run demo:setup`), pure logic with tests (`src/**/*.test.ts`, run with `npm test`), server actions and connectors, UI, demo data (`src/db/demo.ts`).
+- Order of work: schema (`src/db/schema.ts`, then `npm run db:generate` and commit the new file in `drizzle/`, then `npm run demo:setup`), pure logic with tests (`src/**/*.test.ts`, run with `npm test`), server actions and connectors, UI, demo data (`src/db/demo.ts`).
 - Put scoring, scheduling and routing rules in **pure functions with unit tests**. They are the part that breaks silently.
 - Every write path to a real source goes through one function that checks `isDemo()` first. In demo mode it changes the local database only.
 - Follow `CLAUDE.md` for conventions (French UI, design tokens, dates, privacy). The repository is public: no personal data, ever.
@@ -33,8 +33,9 @@ Write a short plan in your first message: the data model change, the server code
 
 1. Update `docs/PROGRESS.md`: set the slice to `in review`, add the branch name, a two-line summary and the date.
 2. Add or adjust a section in `docs/ARCHITECTURE.md` only if a new module changes how the system works.
-3. Push the branch (`git push -u origin slice/sN-short-name`) and open a pull request with the body from `.github/pull_request_template.md`, owner checklist filled from the brief. In cloud sessions `gh pr` does **not** work (the GitHub proxy rejects GraphQL). Use the built-in GitHub tools if you have them; otherwise write the body to a file and call the REST API: `gh api repos/tristanhp/cockpit/pulls -f title="SN: …" -f head=slice/sN-short-name -f base=main -F body=@pr-body.md`. Delete the temporary body file afterwards. If every route fails, do not loop: the pushed branch is enough, say so in your final message and put the intended title and body there. The session link (`https://claude.ai/code/${CLAUDE_CODE_REMOTE_SESSION_ID/#cse_/session_}`) goes in the description when that variable is set.
-4. End with a message of at most ten lines: what works, what needs the owner (real-data test, keys, deploy), and which slice comes next.
+3. The pull request needs a **Production** section: the migration file (if any), new environment variables (also added to `docs/DEPLOY.md` and `.env.example`), new endpoints and whether they are in `MACHINE`, and what the owner must do around the merge (for example `npm run db:migrate` against Turso, then add a variable in Vercel and redeploy).
+4. Push the branch (`git push -u origin slice/sN-short-name`) and open a pull request with the body from `.github/pull_request_template.md`, owner checklist filled from the brief. In cloud sessions `gh pr` does **not** work (the GitHub proxy rejects GraphQL). Use the built-in GitHub tools if you have them; otherwise write the body to a file and call the REST API: `gh api repos/tristanhp/cockpit/pulls -f title="SN: …" -f head=slice/sN-short-name -f base=main -F body=@pr-body.md`. Delete the temporary body file afterwards. If every route fails, do not loop: the pushed branch is enough, say so in your final message and put the intended title and body there. The session link (`https://claude.ai/code/${CLAUDE_CODE_REMOTE_SESSION_ID/#cse_/session_}`) goes in the description when that variable is set.
+5. End with a message of at most ten lines: what works, what needs the owner (real-data test, keys, deploy), and which slice comes next.
 
 ## Guardrails
 

@@ -21,6 +21,8 @@ jobs:
       - run: npm test
       # The versioned migrations must build the whole schema from an empty database.
       - run: mkdir -p data && DATABASE_URL=file:data/ci-migrate.db npm run db:migrate
+      # The migrations in drizzle/ must match src/db/schema.ts: a schema change without `npm run db:generate` would break production.
+      - run: npx drizzle-kit generate && test -z "$(git status --porcelain drizzle)"
       # The demo database exercises the schema and the fictional dataset end to end.
       - run: npm run demo:setup
       - run: npm run build
