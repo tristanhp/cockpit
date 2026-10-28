@@ -5,7 +5,7 @@ import { saveRitualTimes } from "@/app/actions";
 import type { RitualSettings } from "@/rituals/settings";
 import { notify } from "./feedback";
 
-const input = "rounded-md border border-rule-strong bg-paper px-2 py-1 text-sm font-mono focus:border-accent focus:outline-none";
+const input = "w-full min-w-0 rounded-md border border-rule-strong bg-paper px-2 py-1 text-sm font-mono focus:border-accent focus:outline-none";
 
 const FIELDS: { name: keyof RitualSettings; label: string }[] = [
   { name: "capWeekday", label: "Cap en semaine" },
@@ -26,7 +26,7 @@ export function RitualTimes({ settings }: { settings: RitualSettings }) {
       }
       className="mt-3"
     >
-      <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-3">
         {FIELDS.map((f) => (
           <label key={f.name} className="flex flex-col gap-1 text-xs text-ink-soft">
             {f.label}
