@@ -67,6 +67,17 @@ describe("mcpGate", () => {
     assert.equal(mcpGate("Bearer ", "s3cret"), "unauthorized");
   });
   it("lets the right token through", () => assert.equal(mcpGate("Bearer s3cret", "s3cret"), "ok"));
+  it("accepts the token as X-API-Key, for the claude.ai connector", () => {
+    assert.equal(mcpGate(null, "s3cret", "s3cret"), "ok");
+    assert.equal(mcpGate(null, "s3cret", " s3cret "), "ok");
+  });
+  it("refuses a wrong or empty X-API-Key, and still 404s without a token", () => {
+    assert.equal(mcpGate(null, "s3cret", "nope"), "unauthorized");
+    assert.equal(mcpGate(null, "s3cret", ""), "unauthorized");
+    assert.equal(mcpGate(null, "s3cret", null), "unauthorized");
+    assert.equal(mcpGate("Bearer nope", "s3cret", "s3cret"), "ok");
+    assert.equal(mcpGate(null, undefined, "s3cret"), "disabled");
+  });
 });
 
 describe("enrollmentAllowed", () => {
