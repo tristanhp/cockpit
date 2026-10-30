@@ -29,7 +29,13 @@ claude mcp add cockpit -- npm --prefix /path/to/cockpit run --silent mcp
 
 Try it on the fictional data first: `COCKPIT_DEMO=1 DATABASE_URL=file:data/demo.db npm run --silent mcp`.
 
-**claude.ai custom connector**: Settings → Connectors → Add custom connector, URL `https://<your-app>/api/mcp`. The server authenticates with a static bearer token. If the connector form on your plan only offers OAuth and has no way to send an `Authorization` header, it cannot reach this endpoint yet: use Claude Code instead. (This part could not be tested from the cloud session that built the slice; check it and note the outcome here.)
+**claude.ai custom connector**: Settings → Connectors → Add custom connector, URL `https://<your-app>/api/mcp`. In the form:
+
+1. **Authentication**: choose **No sign-in** (Cockpit does not speak OAuth; « Sign in now » is only preselected because the endpoint answers 401).
+2. **Request headers**: add a header named **`x-api-key`** (pick it in the list) and give it **your token alone as the value**, without the word `Bearer`, and leave **Required** ticked. The form reserves `Authorization` for its own OAuth token, so it is greyed out; Cockpit accepts the token as `X-API-Key` for that reason.
+3. Add the connector, then start a chat, enable it and ask for today's plan.
+
+Claude Code can use either form: `Authorization: Bearer <token>` or `X-API-Key: <token>`.
 
 ## The tools
 
@@ -68,7 +74,7 @@ Open **Propositions** (nav, tab bar « Plus », or `Ctrl K`; a badge shows how m
 
 ## Security notes
 
-- **The token is the key.** Anyone with it can read your tasks, goals, habits and week. Keep it out of chats and screenshots, and rotate it by changing the variable and redeploying. It is compared in constant time.
+- **The token is the key.** It is accepted as `Authorization: Bearer <token>` or as `X-API-Key: <token>`. Anyone with it can read your tasks, goals, habits and week. Keep it out of chats and screenshots, and rotate it by changing the variable and redeploying. It is compared in constant time.
 - **Read-only by default.** The only writes are four proposal tools, and they write to Cockpit's own `proposals` table. Applying a proposal needs you, in the app, behind your passkey login.
 - **Same guards as the screens.** Accepting goes through the normal write paths: demo mode never calls a real API, protected calendars are never written, every change is logged and undoable.
 - **Nothing runs on its own.** The server is stateless (no sessions kept) and holds no credentials for Notion, Linear or Google beyond what the app already has.
