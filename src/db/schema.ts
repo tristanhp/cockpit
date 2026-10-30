@@ -211,6 +211,8 @@ export const changeLog = sqliteTable(
     // The source id, "cockpit" for Cockpit-only data, "sync" for a conflict.
     source: text("source").notNull(),
     response: text("response"),
+    // Who asked for the change when it was not typed in the app: "Claude" for an accepted proposal.
+    via: text("via"),
     undone: integer("undone", { mode: "boolean" }).notNull().default(false),
   },
   (t) => [index("change_log_at_idx").on(t.at)],
@@ -543,6 +545,25 @@ export const goalSnapshots = sqliteTable(
   (t) => [primaryKey({ columns: [t.goalId, t.weekStart] })],
 );
 
+// What Claude proposes through the MCP server. A proposal changes nothing until it is accepted in the app.
+export const proposals = sqliteTable(
+  "proposals",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind", { enum: ["capture", "reschedule", "task_update", "goal_breakdown"] }).notNull(),
+    payload: text("payload", { mode: "json" }).$type<unknown>().notNull(),
+    // A short reason written by the proposer, shown on the card.
+    rationale: text("rationale").notNull(),
+    status: text("status", { enum: ["pending", "accepted", "rejected", "expired"] }).notNull().default("pending"),
+    // Who proposed it ("claude").
+    proposedBy: text("proposed_by").notNull().default("claude"),
+    createdAt: text("created_at").notNull(),
+    decidedAt: text("decided_at"),
+    result: text("result"),
+  },
+  (t) => [index("proposals_status_idx").on(t.status)],
+);
+
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value", { mode: "json" }).$type<unknown>(),
@@ -563,6 +584,7 @@ export type TaskTypeRow = typeof taskTypes.$inferSelect;
 export type Match = typeof matches.$inferSelect;
 export type SeasonTableRow = typeof seasonTable.$inferSelect;
 export type Award = typeof awards.$inferSelect;
+export type Proposal = typeof proposals.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
 export type WeeklyMetrics = typeof weeklyMetrics.$inferSelect;
 export type Vision = typeof vision.$inferSelect;

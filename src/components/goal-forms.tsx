@@ -310,22 +310,28 @@ export function AddTask({ goalId, sources, projects }: { goalId: string; sources
   );
 }
 
-/** "Découper avec Claude": copies a ready-made prompt for a Claude chat. No model is called from the app. */
+/** "Découper avec Claude": shows the exact prompt and copies it for a Claude chat. No model is called from the app. */
 export function BreakdownButton({ prompt }: { prompt: string }) {
   return (
-    <button
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(prompt);
-          notify("Prompt copié : colle-le dans une conversation avec Claude.");
-        } catch {
-          notify("Copie impossible : sélectionne le texte ci-dessous.", "error");
-        }
-      }}
-      className={chip}
-    >
-      Découper avec Claude
-    </button>
+    <div>
+      <button
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(prompt);
+            notify("Prompt copié : colle-le dans une conversation avec Claude.");
+          } catch {
+            notify("Copie impossible : sélectionne le texte ci-dessous.", "error");
+          }
+        }}
+        className={chip}
+      >
+        Découper avec Claude
+      </button>
+      <details className="mt-2 text-xs text-ink-soft">
+        <summary className="cursor-pointer hover:text-ink">Voir le prompt</summary>
+        <pre className="mt-1.5 whitespace-pre-wrap rounded-md border border-rule bg-paper-2 p-3 font-mono leading-relaxed">{prompt}</pre>
+      </details>
+    </div>
   );
 }
 

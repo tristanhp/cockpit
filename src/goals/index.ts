@@ -238,10 +238,10 @@ export async function addGoalMilestone(goalId: string, name: string, date: strin
 }
 
 /** A task created through the S2 write path (Notion or Linear) and linked to the goal. */
-export async function addGoalTask(goalId: string, input: { title: string; dueDate: string | null; sourceId: string; projectId: string | null }): Promise<void> {
+export async function addGoalTask(goalId: string, input: { title: string; dueDate: string | null; sourceId: string; projectId: string | null }, opts: { via?: string } = {}): Promise<void> {
   if (!input.title.trim()) throw new Error("Donne un titre à la tâche");
   if (input.dueDate && !isDay(input.dueDate)) throw new Error("Date invalide");
-  const created = await createTask(input.sourceId, input.projectId, { title: input.title.trim(), dueDate: input.dueDate });
+  const created = await createTask(input.sourceId, input.projectId, { title: input.title.trim(), dueDate: input.dueDate }, opts);
   await linkGoal(goalId, "task", created.id);
 }
 

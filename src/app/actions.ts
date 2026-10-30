@@ -9,10 +9,10 @@ import { discoverAll, syncAll } from "@/sync";
 import { applyDayReplan, applyReplanOption, reconcileBlocks, scheduleTask, setTypeRate, type Option } from "@/planning";
 import { captureText, fileAllInbox, fileInboxItem, type CaptureOutcome } from "@/capture";
 import { changeProject, changeTask, undoChange, type ProjectField, type TaskField } from "@/writeback";
-import { openTasks } from "@/lib/queries";
-import { fold } from "@/lib/text";
+import { searchAll, type SearchHit } from "@/lib/search";
 import { requireAuth } from "@/lib/auth/guard";
 import { sendToAll } from "@/push";
+import { acceptProposal, pendingCount, rejectProposal } from "@/proposals";
 import { loadSeasonSettings, recordMatch, refreshSeason, saveSeasonSettings } from "@/season";
 import { parisDay } from "@/lib/dates";
 import { completeReview, confirmWeek, generateProposal, moveProposedBlock, refreshMetrics, saveReviewSettings, saveStep, setBlockExcluded, type CompleteResult } from "@/review";
@@ -103,24 +103,12 @@ export async function dismissDiscovery(id: string) {
   refresh();
 }
 
-export type SearchHit = { id: string; kind: "task" | "project"; label: string; hint?: string; href: string };
-
+export type { SearchHit } from "@/lib/search";
 
 /** Accent-insensitive search over open tasks and projects, for the command palette. */
 export async function searchEverything(query: string): Promise<SearchHit[]> {
   await requireAuth();
-  const q = fold(query.trim());
-  if (q.length < 2) return [];
-  const [tasks, projects] = await Promise.all([openTasks(), db.select().from(schema.projects)]);
-  const taskHits = tasks
-    .filter((t) => fold(`${t.identifier ?? ""} ${t.title}`).includes(q))
-    .slice(0, 8)
-    .map((t) => ({ id: t.id, kind: "task" as const, label: t.title, hint: t.project?.name ?? t.source.name, href: `/taches?t=${encodeURIComponent(t.id)}` }));
-  const projectHits = projects
-    .filter((p) => fold(p.name).includes(q))
-    .slice(0, 5)
-    .map((p) => ({ id: p.id, kind: "project" as const, label: p.name, hint: p.meteo ?? undefined, href: `/objectifs?vue=projets&p=${encodeURIComponent(p.id)}` }));
-  return [...projectHits, ...taskHits];
+  return searchAll(query);
 }
 
 
@@ -457,4 +445,29 @@ export async function saveSeasonSettingsAction(formData: FormData) {
       showDaily: formData.get("showDaily") === "on",
     }),
   );
+}
+
+// ---- Propositions (made by Claude through the MCP server) ---------------------------
+
+/** Accepting runs the same write paths as the screens, so every guard and log applies ("via Claude"). */
+export async function acceptProposalAction(id: string): Promise<ActionResult & { message?: string }> {
+  await requireAuth();
+  try {
+    const message = await acceptProposal(id);
+    refresh();
+    return { ok: true, message };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Une erreur est survenue" };
+  }
+}
+
+export async function rejectProposalAction(id: string) {
+  await requireAuth();
+  return run(() => rejectProposal(id));
+}
+
+/** For the badge in the nav and the palette. */
+export async function pendingProposals(): Promise<number> {
+  await requireAuth();
+  return pendingCount();
 }

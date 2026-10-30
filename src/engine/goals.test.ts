@@ -115,8 +115,8 @@ describe("threads that are missing", () => {
 
 describe("prompt and exports", () => {
   it("builds a self-contained breakdown prompt", () => {
-    const text = breakdownPrompt({ title: "Finir le mémoire", measure: "milestones", target: null, unit: null, current: null }, { seasonName: "Automne", dueDate: "2026-12-01", projects: ["Mémoire"], notes: null, today: TODAY });
-    for (const part of ["Finir le mémoire", "jalons atteints", "Automne", "Mémoire", "sans fil"]) assert.ok(text.includes(part), part);
+    const text = breakdownPrompt({ title: "Finir le mémoire", measure: "milestones", target: null, unit: null, current: null }, { goalId: "g-memoire", seasonName: "Automne", dueDate: "2026-12-01", projects: ["Mémoire"], notes: null, today: TODAY });
+    for (const part of ["Finir le mémoire", "jalons atteints", "Automne", "Mémoire", "sans fil", "propose_goal_breakdown", "« g-memoire »", "Propositions"]) assert.ok(text.includes(part), part);
   });
   it("writes the vision as Markdown", () => {
     const md = visionMarkdown({ identity: ["Curieux"], horizon: "Dans cinq ans…", rules: [] }, { theme: "Année de bascule", motto: "Un pas après l'autre", startDate: "2026-09-01", endDate: "2027-08-31" });

@@ -164,7 +164,7 @@ const MEASURE_LABEL: Record<Measure, string> = { milestones: "jalons atteints", 
 export const measureLabel = (m: Measure) => MEASURE_LABEL[m];
 
 /** A ready-made prompt to break a *sans fil* goal down in a Claude chat. */
-export function breakdownPrompt(goal: Pick<GoalLite, "title" | "measure" | "target" | "unit" | "current">, ctx: { seasonName: string | null; dueDate: string | null; projects: string[]; notes: string | null; today: string }): string {
+export function breakdownPrompt(goal: Pick<GoalLite, "title" | "measure" | "target" | "unit" | "current">, ctx: { goalId: string; seasonName: string | null; dueDate: string | null; projects: string[]; notes: string | null; today: string }): string {
   const lines = [
     "Aide-moi à découper un objectif en travail concret.",
     "",
@@ -177,7 +177,9 @@ export function breakdownPrompt(goal: Pick<GoalLite, "title" | "measure" | "targ
     `Aujourd'hui : ${ctx.today}`,
     "",
     "Contexte : cet objectif n'a aucun travail prévu dans les 14 prochains jours (« sans fil »).",
-    "À produire : 3 à 6 jalons datés, puis pour le premier jalon 3 à 5 tâches de moins de deux heures chacune, avec un effort estimé (1, 2, 3, 5 ou 8 points). Réponds en liste, sans introduction.",
+    "À produire : 3 à 6 jalons datés, puis pour le premier jalon 3 à 5 tâches de moins de deux heures chacune, avec un effort estimé (1, 2, 3, 5 ou 8 points).",
+    `Si tu as accès à Cockpit (serveur MCP) : lis l'objectif avec list_goals, puis appelle propose_goal_breakdown avec goalId « ${ctx.goalId} ». Je validerai la proposition dans Cockpit (Propositions) ; tu ne changes rien toi-même.`,
+    "Sinon, réponds en liste, sans introduction.",
   ];
   return lines.filter((l): l is string => l !== null).join("\n");
 }

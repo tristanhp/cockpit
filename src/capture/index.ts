@@ -60,7 +60,7 @@ async function writeIdea(parsed: Parsed, text: string): Promise<boolean> {
 }
 
 /** One line in, one outcome out: filed straight away when the destination is obvious, else the inbox. */
-export async function captureText(input: string): Promise<CaptureOutcome> {
+export async function captureText(input: string, opts: { via?: string } = {}): Promise<CaptureOutcome> {
   const text = input.trim();
   if (!text) throw new Error("Rien à capturer");
   const parsed = parseCapture(text, parisDay());
@@ -77,7 +77,7 @@ export async function captureText(input: string): Promise<CaptureOutcome> {
   }
 
   if (dest) {
-    await createTask(dest.sourceId, dest.projectId, { title: parsed.title, dueDate: parsed.due });
+    await createTask(dest.sourceId, dest.projectId, { title: parsed.title, dueDate: parsed.due }, opts);
     return { status: "filed", message: `Tâche créée : ${parsed.title}` };
   }
 

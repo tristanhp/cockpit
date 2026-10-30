@@ -214,6 +214,20 @@ export async function moveBlockToNow(blockId: string, now = nowMs()): Promise<vo
   await moveBlockEvent(block, start, start + length, "C'est parti : le bloc commence maintenant");
 }
 
+/** Moves a block to an exact slot (Paris local "YYYY-MM-DDTHH:mm"), keeping its length. Never over a protected event. */
+export async function moveBlockToSlot(blockId: string, startLocal: string, reason: string): Promise<{ start: number; end: number }> {
+  const block = await db.query.blocks.findFirst({ where: eq(schema.blocks.id, blockId) });
+  if (!block) throw new Error("Bloc introuvable");
+  const m = startLocal.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})$/);
+  if (!m) throw new Error("Date et heure invalides");
+  const start = parisInstant(m[1], Number(m[2]) * 60 + Number(m[3]));
+  const end = start + (Date.parse(block.end) - Date.parse(block.start));
+  const events = await busyEvents(m[1], m[1], new Set([block.id]));
+  if (events.some((e) => e.kind === "protected" && e.start < end && e.end > start)) throw new Error("Ce créneau chevauche un événement protégé (cours, sport)");
+  await moveBlockEvent(block, start, end, reason);
+  return { start, end };
+}
+
 /** The day to move a late task without a block to: tomorrow, or the day of the best slot from the day after. */
 export async function dayForLater(taskId: string, today: string, now = nowMs()): Promise<string> {
   const settings = await loadSettings();

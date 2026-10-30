@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { bearerOk, classifyRoute, enrollmentAllowed } from "./access";
 import { hashToken, newToken, sign, unsign } from "./crypto";
+import { mcpGate } from "@/mcp/gate";
 import { SESSION_DAYS, decodeChallenge, decodeSessionCookie, encodeChallenge, encodeSessionCookie, shouldSlide, slideExpiry } from "./session";
 
 const SECRET = "x".repeat(40);
@@ -54,6 +55,20 @@ describe("bearerOk", () => {
   it("rejects a non-bearer scheme", () => assert.equal(bearerOk("Basic s3cret", "s3cret"), false));
 });
 
+describe("mcpGate", () => {
+  it("does not exist without a token", () => {
+    assert.equal(mcpGate("Bearer anything", undefined), "disabled");
+    assert.equal(mcpGate(null, ""), "disabled");
+  });
+  it("refuses a missing, wrong or non-bearer credential", () => {
+    assert.equal(mcpGate(null, "s3cret"), "unauthorized");
+    assert.equal(mcpGate("Bearer nope", "s3cret"), "unauthorized");
+    assert.equal(mcpGate("Basic s3cret", "s3cret"), "unauthorized");
+    assert.equal(mcpGate("Bearer ", "s3cret"), "unauthorized");
+  });
+  it("lets the right token through", () => assert.equal(mcpGate("Bearer s3cret", "s3cret"), "ok"));
+});
+
 describe("enrollmentAllowed", () => {
   const base = { credentialCount: 0, expectedSetupToken: "setup", providedSetupToken: "setup", hasSession: false };
   it("allows the first passkey with the setup token", () => assert.equal(enrollmentAllowed(base), true));
@@ -69,9 +84,9 @@ describe("classifyRoute", () => {
     for (const p of ["/connexion", "/api/auth/login/options", "/manifest.webmanifest", "/sw.js", "/icons/icon-192.png", "/offline.html"]) assert.equal(classifyRoute(p), "public", p);
   });
   it("leaves machine endpoints to their bearer token", () => {
-    for (const p of ["/api/cron/tick", "/api/capture", "/api/sync"]) assert.equal(classifyRoute(p), "machine", p);
+    for (const p of ["/api/cron/tick", "/api/capture", "/api/sync", "/api/mcp"]) assert.equal(classifyRoute(p), "machine", p);
   });
   it("protects everything else", () => {
-    for (const p of ["/", "/taches", "/reglages", "/api/google/auth", "/api/google/callback", "/inbox", "/api/authx"]) assert.equal(classifyRoute(p), "private", p);
+    for (const p of ["/", "/taches", "/reglages", "/api/google/auth", "/api/google/callback", "/inbox", "/api/authx", "/api/mcp/extra", "/propositions"]) assert.equal(classifyRoute(p), "private", p);
   });
 });
