@@ -6,7 +6,7 @@ My planning lived in a dozen places: a Notion "cockpit" for projects and priorit
 
 Cockpit pulls all of it into one local-first app built around my own method: **pillars** (life areas) → **projects** ranked by **level** (Socle / P1 / P2 / Maintenance / En attente) with a **weather** status → **tasks**, **milestones** and **calendar events**. The interface is in French, the language I plan in.
 
-> Status: **slice 1 of 12**, read-only sync with Notion, Linear and Google Calendar plus four screens. See the [roadmap](#roadmap).
+> Status: **slices 1 to 4 done** (sync, write-back and capture, blocks and replanning, phone app with passkey login and notifications, deployed on Vercel + Turso). Slices 5 to 9 (daily rituals, goals, weekly review, season, MCP server) are built and in review until checked with real data. Details in [docs/PROGRESS.md](docs/PROGRESS.md).
 
 ![Aujourd'hui: tasks from Notion and Linear set like a planner page, the day drawn to scale with free slots, P1 projects and upcoming milestones](docs/screenshots/aujourdhui.png)
 
@@ -54,7 +54,7 @@ npm run demo   # fictional data, no API keys needed → http://localhost:3000
 - **Everything is data, nothing is an enum.** Pillars, levels, seasons and sources are rows, not code. A new project, semester or tool must never require a code change.
 - **Pluggable connectors.** Each tool implements one small interface (`missingSetup / pull / discover`). Adding Todoist or Apple Health means adding one file.
 - **Schema inference.** Notion databases name their fields differently (`Status`/`Statut`, `Due`/`Date`/`Échéance`). The Notion connector reads each schema and guesses the title, status and date mapping, resolving status groups to todo/doing/done.
-- **Sources stay the source of truth.** Each pull is the complete state of a source and is swapped in atomically. Write-back to the home tool comes in later slices.
+- **Sources stay the source of truth.** Each pull is the complete state of a source and is swapped in atomically. Cockpit writes changes back through one module (`src/writeback/`) that checks demo mode, logs every change and can undo it.
 - **Local-first.** SQLite on disk today. The same libSQL driver moves to Turso when the app goes online for phone access.
 
 More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); product decisions and the next slice in [docs/SPEC.md](docs/SPEC.md).
@@ -99,18 +99,16 @@ The text is parsed like the in-app capture (`c`): French dates and hours, `#tags
 
 | # | Slice | Status |
 |---|---|---|
-| 1 | Read-only sync (Notion, Linear, Google Calendar) · Aujourd'hui / Tâches / Cockpit / Réglages | ✅ |
-| 2 | Write-back, capture and the priority scale | ⏳ in review |
-| 3 | Guided daily and weekly reviews (3 min and 10 min), saved back to Notion | |
-| 4 | Task write-back, routed to the right source · quick capture inbox | |
-| 5 | Deterministic time-blocking engine (Socle → P1 → P2 → Maintenance) writing to Google Calendar | |
-| 6 | Habits scored against an 80% weekly target, with a "never miss twice" alert | |
-| 7 | Vision layer: yearly themes and goals linked to pillars and projects | |
-| 8 | Obsidian bridge: project notes ↔ projects, reviews exported as Markdown | |
-| 9 | Monthly and semester reviews · workload planner (backward planning before exams) | |
-| 10 | iOS Shortcut capture (Apple Reminders) · handwritten-notes inbox | |
-| 11 | Hosting (Turso + Vercel + auth), PWA on iPhone, local vault companion | |
-| 12 | AI coach in reviews · an MCP server so agents read one source instead of ten | |
+| 1 | Read-only sync (Notion, Linear, Google Calendar) · Aujourd'hui / Tâches / Cockpit / Réglages · demo mode | ✅ |
+| 2 | Write-back to Notion and Linear with a change journal and undo · capture and Inbox · priority and effort scale | ✅ |
+| 3 | Blocks and the replan engine, writing to Google Calendar | ✅ |
+| 4 | On the phone: passkey login, PWA, notifications, deployed on Vercel + Turso | ✅ |
+| 5 | Le cap and la clôture (daily rituals, habits) | ⏳ in review |
+| 6 | Vision, goals and threads | ⏳ in review |
+| 7 | La revue and the week engine | ⏳ in review |
+| 8 | La saison (game layer) and insight charts | ⏳ in review |
+| 9 | Claude assists through an MCP server (read tools, proposals approved in the app) | ⏳ in review |
+| 10+ | Nouveau projet / Archiver, semester setup, vault bridge, monthly and semester reviews | |
 
 ## Project structure
 
